@@ -1,0 +1,19 @@
+{
+  "name": "@ffos/store",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --watch --dts"
+  },
+  "dependencies": {
+    "zustand": "latest"
+  },
+  "devDependencies": {
+    "tsup": "latest",
+    "typescript": "latest"
+  }
+}

@@ -1,0 +1,114 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Build artifacts
+dist/
+build/
+.turbo/
+.next/
+out/
+web-build/
+
+# Expo
+.expo/
+expo-env.d.ts
+
+# Native Mobile (if generated)
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.metro-health-check*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Agent & Plans
+.agent/
+.gemini/
+implementations/
+plans/
+*.plan
+
+# Screenshots & Media
+ss/
+screenshots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+
+# Data & Reports
+*.xlsx
+*.csv
+*.pdf
+*.json.log
+*.tsbuildinfo
+
+# Miscellaneous
+symlink
+*.symlink
+
+# Tokens & Credentials
+*token*.json
+tokens.json
+*.token
+*cred*.json
+*secret*.json
+service-account.json
+client_secret*.json
+*.key
+*.pem
+*.p12
+*.jks
+*.mobileprovision
+
+# Data Dumps & Research Results
+research_results*.json
+sheet_discovery_summary.json
+*_summary.json
+*.json.log
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+chroma_db/
+
+# Jupyter Notebooks
+.ipynb_checkpoints

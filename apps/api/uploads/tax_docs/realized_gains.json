@@ -1,0 +1,69 @@
+[
+  {
+    "type": "mutual_funds",
+    "total_stcg": 0.0,
+    "total_ltcg": 88089.63,
+    "total_dividend": 0,
+    "items": [
+      {
+        "name": "Canara Robeco Large Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 130.67
+      },
+      {
+        "name": "Canara Robeco Large Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 1167.74
+      },
+      {
+        "name": "Canara Robeco Large Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 1548.72
+      },
+      {
+        "name": "Canara Robeco Large Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 1827.38
+      },
+      {
+        "name": "Canara Robeco Large Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 1795.64
+      },
+      {
+        "name": "Canara Robeco Large Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 2271.56
+      },
+      {
+        "name": "Canara Robeco Large Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 2569.68
+      },
+      {
+        "name": "Canara Robeco Large Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 1049.17
+      },
+      {
+        "name": "Canara Robeco Small Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 3279.7
+      },
+      {
+        "name": "Canara Robeco Small Cap Fund Direct Growth",
+        "stcg": 0.0,
+        "ltcg": 1920.69
+      }
+    ],
+    "filename": "Mutual_Funds_Capital_Gains_Report_01-04-2025_31-03-2026.xlsx"
+  },
+  {
+    "type": "stocks",
+    "total_stcg": 66161.7,
+    "total_ltcg": 4561.17,
+    "total_dividend": 3660.65,
+    "items": [],
+    "filename": "Stocks_Capital_Gains_Report_9913048171_01-04-2025_31-03-2026.xlsx"
+  }
+]

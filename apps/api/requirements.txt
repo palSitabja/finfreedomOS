@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pandas
+pydantic
+google-api-python-client
+google-auth-oauthlib
+pgvector
+psycopg2-binary
+litellm
+python-dotenv
+yfinance
+nsepy
+chromadb
+python-multipart
+pypdf
+openpyxl
+azure-ai-inference
