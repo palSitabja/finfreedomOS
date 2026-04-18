@@ -113,11 +113,47 @@ def test_github() -> bool:
         return False
 
 
+def test_groq() -> bool:
+    api_key = os.environ.get("GROQ_API_KEY", "")
+    model   = os.environ.get("GROQ_MODEL", "groq/qwen-2.5-32b")
+
+    print(f"\n{'─'*50}")
+    print(f"  Provider : Groq Cloud")
+    print(f"  Model    : {model}")
+    print(f"  API Key  : {'SET (' + api_key[:8] + '...)' if api_key else 'NOT SET'}")
+    print(f"{'─'*50}")
+
+    if not api_key:
+        print(f"  {WARN} GROQ_API_KEY is not set.")
+        print(f"       Add it to apps/api/.env:  GROQ_API_KEY=gsk_your_key_here")
+        return False
+
+    try:
+        from litellm import completion
+        t0 = time.time()
+        response = completion(
+            model=model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": USER_PROMPT},
+            ],
+            api_key=api_key,
+            timeout=20,
+        )
+        elapsed = time.time() - t0
+        text = response.choices[0].message.content.strip()
+        print(f"  {PASS} Response ({elapsed:.1f}s): {text}")
+        return True
+    except Exception as e:
+        print(f"  {FAIL} Failed: {e}")
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Test LLM provider connectivity")
     parser.add_argument(
         "--provider",
-        choices=["ollama", "github", "all", "auto"],
+        choices=["ollama", "github", "groq", "all", "auto"],
         default="auto",
         help="Which provider to test (default: read from INFERENCE_PROVIDER env var)",
     )
@@ -126,7 +162,7 @@ def main():
     active = os.environ.get("INFERENCE_PROVIDER", "ollama").lower().strip()
     provider = args.provider if args.provider != "auto" else active
 
-    print(f"\n🔍 Financial Freedom OS — LLM Provider Connectivity Test")
+    print(f"\n🔍 Finetra — LLM Provider Connectivity Test")
     print(f"   Active provider in .env: {active.upper()}")
 
     results = {}
@@ -136,6 +172,9 @@ def main():
 
     if provider in ("github", "all"):
         results["github"] = test_github()
+
+    if provider in ("groq", "all"):
+        results["groq"] = test_groq()
 
     # Summary
     print(f"\n{'═'*50}")

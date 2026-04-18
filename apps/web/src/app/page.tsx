@@ -1,31 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { 
-  TrendingUp, 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  MessageSquare, 
-  Sparkles,
-  PieChart,
-  History,
-  LayoutDashboard,
-  BarChart3,
-  Activity
+  TrendingUp, Wallet, ArrowUpRight, ArrowDownLeft,
+  MessageSquare, Sparkles, History, LayoutDashboard,
+  BarChart3, Activity, Send, ChevronDown,
+  Banknote, Landmark, Radar, Calculator, Flame
 } from "lucide-react";
 import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  BarChart,
-  Bar,
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  Cell
+  AreaChart, Area, XAxis, YAxis, BarChart, Bar,
+  CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import { DetailedTable } from "../components/DetailedTable";
 import { AssetsDashboard } from "../components/AssetsDashboard";
@@ -35,6 +20,16 @@ import { TaxIntelligence } from "../components/TaxIntelligence";
 import { FireNavigator } from "../components/FireNavigator";
 
 type ActiveTab = 'cashflow' | 'assets' | 'portfolio' | 'tax' | 'fire';
+
+const TABS: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
+  { id: 'cashflow',  label: 'Cashflow',    icon: <Banknote size={16} /> },
+  { id: 'assets',   label: 'Assets',      icon: <Landmark size={16} /> },
+  { id: 'portfolio',label: 'Portfolio',   icon: <Radar size={16} /> },
+  { id: 'tax',      label: 'Tax Intel',   icon: <Calculator size={16} /> },
+  { id: 'fire',     label: 'FIRE',        icon: <Flame size={16} /> },
+];
+
+const BAR_COLORS = ['#7c5cfc','#00d68f','#38bdf8','#fb923c','#ff5370','#fbbf24','#a855f7','#06b6d4'];
 
 export default function Home() {
   const [stats, setStats] = useState({ net_savings: 0, total_income: 0, total_expenses: 0, actual_expenses: 0, investments: 0, transaction_count: 0, period: "All-Time" });
@@ -47,94 +42,44 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const years = ["2021", "2022", "2023", "2024", "2025", "2026"];
 
   useEffect(() => {
-    const statsUrl = selectedYear 
-      ? `http://localhost:8000/stats?year=${selectedYear}` 
-      : "http://localhost:8000/stats";
-
-    setFetching(true);
-    setError(null);
-    
+    setFetching(true); setError(null);
     if (selectedYear) {
-      // Fetch detailed data which now includes the summary for that year
       fetch(`http://localhost:8000/stats/detailed?year=${selectedYear}`)
-        .then(res => {
-          if (!res.ok) throw new Error("Detailed data unavailable");
-          return res.json();
-        })
-        .then(data => {
-          setDetailedData(data);
-          // Sync the top cards stats with the year's summary
-          if (data.summary) {
-            setStats(data.summary);
-          }
-          setFetching(false);
-        })
-        .catch(err => {
-          console.error("Error fetching detailed stats:", err);
-          setError("Failed to load yearly breakdown.");
-          setFetching(false);
-        });
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(d => { setDetailedData(d); if (d.summary) setStats(d.summary); setFetching(false); })
+        .catch(() => { setError("Failed to load yearly breakdown."); setFetching(false); });
     } else {
-      // All-Time Summary
       fetch("http://localhost:8000/stats")
-        .then(res => {
-          if (!res.ok) throw new Error("Stats unavailable");
-          return res.json();
-        })
-        .then(data => {
-          setStats(data);
-          setDetailedData(null);
-          setFetching(false);
-        })
-        .catch(err => {
-          console.error("Error fetching all-time stats:", err);
-          setError("Failed to load all-time summary.");
-          setFetching(false);
-        });
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(d => { setStats(d); setDetailedData(null); setFetching(false); })
+        .catch(() => { setError("Failed to load all-time summary."); setFetching(false); });
     }
   }, [selectedYear]);
 
   const handleChat = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!query.trim()) return;
-    const userMsg = query;
-    setQuery("");
-    setChatHistory(prev => [...prev, { role: 'user', content: userMsg }]);
-    setLoading(true);
+    const msg = query; setQuery(""); setLoading(true);
+    setChatHistory(p => [...p, { role: 'user', content: msg }]);
     try {
-      const res = await fetch("http://localhost:8000/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg }),
-      });
+      const res = await fetch("http://localhost:8000/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: msg }) });
       const data = await res.json();
-      setChatHistory(prev => [...prev, { role: 'ai', content: data.answer }]);
-    } catch (err) {
-      setChatHistory(prev => [...prev, { role: 'ai', content: "Sorry, I couldn't reach the Intelligence Assistant." }]);
-    } finally {
-      setLoading(false);
-    }
+      setChatHistory(p => [...p, { role: 'ai', content: data.answer }]);
+    } catch { setChatHistory(p => [...p, { role: 'ai', content: "Sorry, couldn't reach the Intelligence Assistant." }]); }
+    finally { setLoading(false); }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleChat();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChat(); }
   };
 
   const getCategories = (type: "Income" | "Expense") => {
     if (!detailedData) return [];
     const cats = new Set<string>();
-    Object.values(detailedData.months).forEach((m: any) => {
-      if (m.categories[type]) {
-        Object.keys(m.categories[type]).forEach(c => cats.add(c));
-      }
-    });
+    Object.values(detailedData.months).forEach((m: any) => { if (m.categories[type]) Object.keys(m.categories[type]).forEach(c => cats.add(c)); });
     return Array.from(cats).sort();
   };
 
@@ -142,314 +87,300 @@ export default function Home() {
     if (!detailedData) return [];
     const totals: Record<string, number> = {};
     Object.values(detailedData.months).forEach((m: any) => {
-      if (m.groups && m.groups["Expense"]) {
-        Object.entries(m.groups["Expense"]).forEach(([grp, val]) => {
-          totals[grp] = (totals[grp] || 0) + (val as number);
-        });
-      }
+      if (m.groups?.["Expense"]) Object.entries(m.groups["Expense"]).forEach(([g, v]) => { totals[g] = (totals[g] || 0) + (v as number); });
     });
-
-    // Match original spreadsheet ordering loosely or alphabetically 
-    return Object.entries(totals)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value); 
+    return Object.entries(totals).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   };
 
+  const savingsRate = stats.total_income > 0 ? ((stats.net_savings / stats.total_income) * 100).toFixed(1) : 0;
+  const investRate  = stats.total_income > 0 ? ((stats.investments / stats.total_income) * 100).toFixed(1) : 0;
+
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans p-8">
-      {/* Header */}
-      <header className="max-w-7xl mx-auto flex justify-between items-center mb-12">
+    <div className="min-h-screen p-6 lg:p-8" style={{ color: 'var(--text-primary)' }}>
+      {/* ── HEADER ── */}
+      <header className="max-w-7xl mx-auto flex flex-wrap justify-between items-center mb-10 gap-4">
         <div className="flex items-center gap-3">
-          <div className="bg-emerald-500 p-2 rounded-xl text-white">
-            <TrendingUp size={24} />
-          </div>
+          <img src="/logo.png" alt="Finetra" className="w-12 h-12 object-contain rounded-[14px]" />
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Financial Freedom OS</h1>
-            <p className="text-sm text-slate-500 font-medium">Wealth Intelligence v1.0</p>
+            <h1 className="text-3xl font-black leading-tight text-gradient-violet title-font">Finetra</h1>
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Wealth Intelligence Platform</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label htmlFor="year-select" className="text-xs font-bold text-slate-400 uppercase tracking-widest">Year View</label>
-            <select 
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <select
               id="year-select"
               value={selectedYear || ""}
-              onChange={(e) => setSelectedYear(e.target.value || null)}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-sans"
+              onChange={e => setSelectedYear(e.target.value || null)}
+              className="input-dark pr-8 text-sm font-semibold cursor-pointer appearance-none"
+              style={{ paddingRight: 36 }}
             >
               <option value="">All-Time Summary</option>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
           </div>
-          <div className="hidden sm:flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 font-bold text-[10px] text-emerald-700 uppercase tracking-widest">
-            <Sparkles size={12} /> Live Sync
+          <div className="badge-emerald flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-current pulse-glow inline-block" />
+            Live Sync
           </div>
         </div>
       </header>
 
-      {/* Tab Navigation */}
-      <nav className="max-w-7xl mx-auto flex gap-4 mb-8 border-b border-slate-100">
-         <button onClick={() => setActiveTab('cashflow')} className={`pb-4 px-2 font-bold text-sm tracking-widest uppercase transition-all border-b-2 ${activeTab === 'cashflow' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>Cashflow Summary</button>
-         <button onClick={() => setActiveTab('assets')} className={`pb-4 px-2 font-bold text-sm tracking-widest uppercase transition-all border-b-2 ${activeTab === 'assets' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>Assets & Portfolio</button>
-         <button onClick={() => setActiveTab('portfolio')} className={`pb-4 px-2 font-bold text-sm tracking-widest uppercase transition-all border-b-2 ${activeTab === 'portfolio' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>Portfolio Intelligence</button>
-         <button onClick={() => setActiveTab('tax')} className={`pb-4 px-2 font-bold text-sm tracking-widest uppercase transition-all border-b-2 ${activeTab === 'tax' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>Tax Optimizer</button>
-         <button onClick={() => setActiveTab('fire')} className={`pb-4 px-2 font-bold text-sm tracking-widest uppercase transition-all border-b-2 ${activeTab === 'fire' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>FIRE Navigator</button>
+      {/* ── TAB NAV ── */}
+      <nav className="max-w-7xl mx-auto flex gap-2 mb-10 overflow-x-auto pb-1 custom-scrollbar">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`tab-btn ${activeTab === tab.id ? (tab.id === 'cashflow' ? 'active-emerald' : 'active') : ''}`}
+          >
+            <span className="shrink-0">{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
       </nav>
 
-      <main className="max-w-7xl mx-auto space-y-12">
+      <main className="max-w-7xl mx-auto space-y-10">
         {error && (
-          <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl text-rose-600 text-sm font-bold flex items-center gap-3 animate-pulse">
-            <div className="bg-rose-100 p-1.5 rounded-full"><History size={16} /></div>
-            {error}
+          <div className="card flex items-center gap-3 p-4" style={{ borderColor: 'var(--accent-rose)', background: 'var(--accent-rose-dim)' }}>
+            <History size={16} style={{ color: 'var(--accent-rose)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--accent-rose)' }}>{error}</span>
           </div>
         )}
-        
-        {/* Cashflow Content */}
-        {activeTab === 'cashflow' && (fetching ? (
-          <CashflowPageSkeleton />
-        ) : (
+
+        {/* ── CASHFLOW TAB ── */}
+        {activeTab === 'cashflow' && (fetching ? <CashflowPageSkeleton /> : (
           <>
-            {/* Top Cards Section */}
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <div className="lg:col-span-3 space-y-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                 <div className="flex justify-between items-start mb-4">
-                    <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600"><Wallet size={20} /></div>
-                    <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-100 px-2 py-0.5 rounded uppercase">{stats.transaction_count} months</span>
-                 </div>
-                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Net Savings</p>
-                 <h2 className={`text-2xl font-bold italic ${stats.net_savings >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>₹{(stats.net_savings || 0).toLocaleString()}</h2>
+            {/* Stat Cards */}
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* Net Savings */}
+              <div className="card stat-card stat-card-emerald p-6" style={{ background: 'linear-gradient(135deg, rgba(0, 214, 143, 0.05) 0%, rgba(255, 255, 255, 0) 100%)' }}>
+                <div className="icon-orb icon-orb-emerald mb-5"><Wallet size={26} /></div>
+                <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Net Savings</p>
+                <h2 className={`text-2xl font-bold font-mono-data ${stats.net_savings >= 0 ? 'text-gradient-emerald' : ''}`} style={stats.net_savings < 0 ? { color: 'var(--accent-rose)' } : {}}>
+                  ₹{(stats.net_savings || 0).toLocaleString()}
+                </h2>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{stats.transaction_count} months tracked</p>
               </div>
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                 <div className="bg-blue-100 w-fit p-2 rounded-lg text-blue-600 mb-4"><ArrowUpRight size={20} /></div>
-                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Income</p>
-                 <h2 className="text-2xl font-bold">₹{(stats.total_income || 0).toLocaleString()}</h2>
+              {/* Income */}
+              <div className="card stat-card stat-card-sky p-6" style={{ background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.05) 0%, rgba(255, 255, 255, 0) 100%)' }}>
+                <div className="icon-orb icon-orb-sky mb-5"><ArrowUpRight size={26} /></div>
+                <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Total Income</p>
+                <h2 className="text-2xl font-bold font-mono-data" style={{ color: 'var(--accent-sky)' }}>₹{(stats.total_income || 0).toLocaleString()}</h2>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Savings rate {savingsRate}%</p>
               </div>
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                 <div className="bg-rose-100 w-fit p-2 rounded-lg text-rose-600 mb-4"><ArrowDownLeft size={20} /></div>
-                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Actual Expenses</p>
-                 <h2 className="text-2xl font-bold">₹{(stats.actual_expenses || 0).toLocaleString()}</h2>
-                 <p className="text-[10px] text-slate-400 mt-1">Excl. investments</p>
+              {/* Expenses */}
+              <div className="card stat-card stat-card-rose p-6" style={{ background: 'linear-gradient(135deg, rgba(255, 83, 112, 0.05) 0%, rgba(255, 255, 255, 0) 100%)' }}>
+                <div className="icon-orb icon-orb-rose mb-5"><ArrowDownLeft size={26} /></div>
+                <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Actual Expenses</p>
+                <h2 className="text-2xl font-bold font-mono-data" style={{ color: 'var(--accent-rose)' }}>₹{(stats.actual_expenses || 0).toLocaleString()}</h2>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Excl. investments</p>
               </div>
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                 <div className="bg-indigo-100 w-fit p-2 rounded-lg text-indigo-600 mb-4"><TrendingUp size={20} /></div>
-                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Invested</p>
-                 <h2 className="text-2xl font-bold text-indigo-600">₹{(stats.investments || 0).toLocaleString()}</h2>
-                 <p className="text-[10px] text-slate-400 mt-1">{stats.total_income > 0 ? ((stats.investments / stats.total_income) * 100).toFixed(1) : 0}% of income</p>
+              {/* Invested */}
+              <div className="card stat-card stat-card-violet p-6" style={{ background: 'linear-gradient(135deg, rgba(124, 92, 252, 0.05) 0%, rgba(255, 255, 255, 0) 100%)' }}>
+                <div className="icon-orb icon-orb-violet mb-5"><TrendingUp size={26} /></div>
+                <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>Invested</p>
+                <h2 className="text-2xl font-bold font-mono-data text-gradient-violet">₹{(stats.investments || 0).toLocaleString()}</h2>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{investRate}% of income</p>
               </div>
-            </div>
+            </section>
 
             {/* AI Insights Card */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                   <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600"><Sparkles size={20} /></div>
-                   <h3 className="font-bold text-lg italic tracking-tight">Intelligent Performance Wrap</h3>
+            <div className="card card-glow-violet p-8 relative overflow-hidden">
+              <div className="absolute -top-8 -right-8 opacity-5"><Sparkles size={160} /></div>
+              <div className="flex items-center gap-3 mb-5">
+                <div className="icon-orb icon-orb-violet" style={{ width: 44, height: 44 }}><Sparkles size={20} /></div>
+                <div>
+                  <h3 className="font-bold text-base">Intelligent Performance Wrap</h3>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>AI-powered summary for {selectedYear || 'all-time'}</p>
                 </div>
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                   <p className="text-sm text-slate-600 leading-relaxed italic">
-                      "Your savings rate in {selectedYear || 'all-time'} is <strong>{stats.total_income > 0 ? ((stats.net_savings / stats.total_income) * 100).toFixed(1) : 0}%</strong>. 
-                      {stats.net_savings > 0 ? " This represents a healthy cash surplus being built month-over-month." : " Analysis suggests reviewing non-essential expenses."}"
-                   </p>
+              </div>
+              <div className="rounded-2xl p-5" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  Your savings rate is <strong style={{ color: 'var(--accent-emerald)' }}>{savingsRate}%</strong> {stats.net_savings > 0 ? "— a healthy surplus being built month-over-month. Keep compounding." : "— consider reviewing non-essential expenses to improve your cushion."}
+                </p>
+              </div>
+            </div>
+
+            {/* Yearly Drilldown */}
+            {selectedYear && detailedData && (
+              <section className="space-y-8 animate-in">
+                <div className="flex items-center gap-3">
+                  <div className="icon-orb icon-orb-violet" style={{ width: 40, height: 40, borderRadius: 12 }}><LayoutDashboard size={18} /></div>
+                  <div>
+                    <h2 className="text-xl font-bold">Yearly Drill-down: {selectedYear}</h2>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Monthly breakdown & category analysis</p>
+                  </div>
                 </div>
-            </div>
-          </div>
-        </section>
-        {/* Detailed Drills - Only shown when a year is selected */}
-        {selectedYear && detailedData && (
-          <section className="space-y-12 animate-in fade-in duration-700 mt-12">
-            <div className="flex items-center gap-3 mb-8">
-               <div className="bg-slate-900 p-2 rounded-lg text-white"><LayoutDashboard size={20} /></div>
-               <div>
-                  <h2 className="text-2xl font-bold tracking-tight">Yearly Drill-down: {selectedYear}</h2>
-                  <p className="text-sm text-slate-500">Detailed monthly breakdown and category analysis</p>
-               </div>
-            </div>
 
-            {/* Summary Matrix Table */}
-            <DetailedTable 
-              title="Summary" 
-              data={detailedData.months} 
-              rows={["Income", "Expenses", "Actual Expenses", "Net savings", "Ending balance"]} 
-              colorClass="text-indigo-600"
-            />
+                <DetailedTable title="Summary" data={detailedData.months} rows={["Income", "Expenses", "Actual Expenses", "Net savings", "Ending balance"]} colorClass="text-indigo-400" />
 
-            {/* Top Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-               {/* Income vs Expense vs Investment Plot */}
-               <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-                  <div className="flex items-center gap-2 mb-8">
-                     <TrendingUp size={18} className="text-slate-400" />
-                     <h3 className="font-bold tracking-tight">Cashflow Efficiency</h3>
-                  </div>
-                  <div className="h-[260px]">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={MONTHS.map(m => ({ 
-                            name: m, 
-                            income: detailedData.months[m]["Income"], 
-                            actual_expenses: detailedData.months[m]["Actual Expenses"],
-                            invest: detailedData.months[m]["Investments"]
-                        }))}>
-                           <defs>
-                              <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                                 <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                              </linearGradient>
-                           </defs>
-                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} dy={10} />
-                           <YAxis hide />
-                           <Tooltip contentStyle={{borderRadius: '12px', border: 'none'}} />
-                           <Area type="monotone" dataKey="income" stroke="#10b981" strokeWidth={3} fill="url(#incomeGrad)" name="Income" />
-                           <Area type="monotone" dataKey="actual_expenses" stroke="#f43f5e" strokeWidth={2} fill="transparent" name="Actual Expenses" />
-                           <Area type="monotone" dataKey="invest" stroke="#6366f1" strokeWidth={3} fill="transparent" name="Investment" strokeDasharray="5 5" />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Cashflow Efficiency */}
+                  <div className="card p-7">
+                    <div className="flex items-center gap-2 mb-6">
+                      <TrendingUp size={16} style={{ color: 'var(--accent-emerald)' }} />
+                      <h3 className="font-bold text-sm">Cashflow Efficiency</h3>
+                    </div>
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={MONTHS.map(m => ({ name: m, income: detailedData.months[m]?.["Income"] || 0, actual_expenses: detailedData.months[m]?.["Actual Expenses"] || 0, invest: detailedData.months[m]?.["Investments"] || 0 }))}>
+                          <defs>
+                            <linearGradient id="incG" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#00d68f" stopOpacity={0.15}/>
+                              <stop offset="95%" stopColor="#00d68f" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#475569' }} dy={8} />
+                          <YAxis hide />
+                          <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', borderRadius: 12 }} />
+                          <Area type="monotone" dataKey="income" stroke="#00d68f" strokeWidth={2.5} fill="url(#incG)" name="Income" />
+                          <Area type="monotone" dataKey="actual_expenses" stroke="#ff5370" strokeWidth={2} fill="transparent" name="Expenses" />
+                          <Area type="monotone" dataKey="invest" stroke="#7c5cfc" strokeWidth={2} fill="transparent" name="Investment" strokeDasharray="5 5" />
                         </AreaChart>
-                     </ResponsiveContainer>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-               </div>
 
-               {/* Ending Balance Trajectory */}
-               <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between mb-8">
-                     <div className="flex items-center gap-2">
-                        <TrendingUp size={18} className="text-slate-400" />
-                        <h3 className="font-bold tracking-tight">Wealth Trajectory (Ending Balance)</h3>
-                     </div>
-                     <div className="flex gap-2">
-                        <button aria-label="View Monthly Analysis" className="text-[10px] font-bold px-3 py-1.5 bg-slate-900 text-white rounded-lg uppercase tracking-widest leading-none">Monthly View</button>
-                     </div>
-                  </div>
-                  <div className="h-[260px]">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={MONTHS.map(m => ({ name: m, value: detailedData.months[m]["Ending balance"] }))}>
-                           <defs>
-                              <linearGradient id="balanceGrad" x1="0" y1="0" x2="0" y2="1">
-                                 <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                                 <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                              </linearGradient>
-                           </defs>
-                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} dy={10} />
-                           <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                           <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fill="url(#balanceGrad)" name="Ending Balance" />
+                  {/* Wealth Trajectory */}
+                  <div className="card p-7">
+                    <div className="flex items-center gap-2 mb-6">
+                      <BarChart3 size={16} style={{ color: 'var(--accent-violet)' }} />
+                      <h3 className="font-bold text-sm">Wealth Trajectory</h3>
+                    </div>
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={MONTHS.map(m => ({ name: m, value: detailedData.months[m]?.["Ending balance"] || 0 }))}>
+                          <defs>
+                            <linearGradient id="balG" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#7c5cfc" stopOpacity={0.18}/>
+                              <stop offset="95%" stopColor="#7c5cfc" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#475569' }} dy={8} />
+                          <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', borderRadius: 12 }} />
+                          <Area type="monotone" dataKey="value" stroke="#7c5cfc" strokeWidth={2.5} fill="url(#balG)" name="Balance" />
                         </AreaChart>
-                     </ResponsiveContainer>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-               </div>
-            </div>
+                </div>
 
-            {/* Expenditure by Category Bar Chart (Full Width) */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-               <div className="flex items-center gap-2 mb-8">
-                  <BarChart3 size={18} className="text-slate-400" />
-                  <h3 className="font-bold tracking-tight">Average spent per category</h3>
-               </div>
-               <div className="h-[350px]">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={getCategoryChartData()}>
-                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} dy={10} />
-                       <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 600, fill: '#94a3b8'}} width={60} tickFormatter={(value) => `₹${value.toLocaleString()}`} />
-                       <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, "Average Spent"]} />
-                       <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40} fill="#e27a67" />
-                    </BarChart>
-                 </ResponsiveContainer>
-               </div>
-            </div>
+                {/* Category Bar Chart */}
+                <div className="card p-7">
+                  <div className="flex items-center gap-2 mb-6">
+                    <BarChart3 size={16} style={{ color: 'var(--accent-amber)' }} />
+                    <h3 className="font-bold text-sm">Average Spent per Category</h3>
+                  </div>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={getCategoryChartData()}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#475569' }} dy={8} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#475569' }} width={60} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                        <Tooltip cursor={{ fill: 'rgba(255,255,255,0.03)' }} contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', borderRadius: 12 }} formatter={(v: any) => [`₹${Number(v).toLocaleString()}`, "Avg Spent"]} />
+                        <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={36}>
+                          {getCategoryChartData().map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
 
-            {/* Income & Expense Breakdown Tables */}
-            <div className="grid grid-cols-1 gap-8">
-               <DetailedTable 
-                 title="Income" 
-                 data={detailedData.months} 
-                 rows={getCategories("Income")} 
-                 colorClass="text-emerald-600"
-               />
-               <DetailedTable 
-                 title="Expenses" 
-                 categoryKey="Expense"
-                 data={detailedData.months} 
-                 rows={getCategories("Expense")} 
-                 colorClass="text-rose-600"
-               />
-            </div>
-          </section>
-        )}
+                <div className="grid grid-cols-1 gap-6">
+                  <DetailedTable title="Income"   data={detailedData.months} rows={getCategories("Income")}  colorClass="text-emerald-400" />
+                  <DetailedTable title="Expenses" categoryKey="Expense" data={detailedData.months} rows={getCategories("Expense")} colorClass="text-rose-400" />
+                </div>
+              </section>
+            )}
           </>
         ))}
 
-        {/* Detailed Drills - Assets Tab Full View */}
-        {activeTab === 'assets' && (
-           <AssetsDashboard />
-        )}
-
-        {/* Portfolio Command Center Tab */}
-        {activeTab === 'portfolio' && (
-           <PortfolioCommandCenter />
-        )}
-
-        {/* Tax Intelligence Tab */}
-        {activeTab === 'tax' && (
-           <TaxIntelligence />
-        )}
-
-        {/* FIRE Navigator Tab */}
-        {activeTab === 'fire' && (
-           <FireNavigator />
-        )}
+        {activeTab === 'assets'    && <AssetsDashboard />}
+        {activeTab === 'portfolio' && <PortfolioCommandCenter />}
+        {activeTab === 'tax'       && <TaxIntelligence />}
+        {activeTab === 'fire'      && <FireNavigator />}
       </main>
 
-      <footer className="max-w-7xl mx-auto mt-24 pt-8 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-slate-300 pb-20">
-         <div className="flex gap-6">
-            <span>Powered by Qwen 3.5</span>
-            <span>Local SQLite Node Active</span>
-         </div>
-         <div className="flex gap-2 items-center">
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-            <span>Encrypted Individual Instance</span>
-         </div>
+      {/* ── FOOTER ── */}
+      <footer className="max-w-7xl mx-auto mt-20 pt-6 flex justify-between items-center text-xs font-semibold uppercase tracking-widest pb-24" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+        <div className="flex gap-6">
+          <span>Powered by Qwen 3.5</span>
+          <span>Local SQLite Active</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full pulse-glow" style={{ background: 'var(--accent-emerald)' }} />
+          <span>Encrypted Instance</span>
+        </div>
       </footer>
 
-      {/* Floating Global AI Oracle Chat */}
-      <div className={`fixed bottom-6 right-6 z-50 w-[450px] bg-slate-50 rounded-3xl border border-slate-200 flex flex-col overflow-hidden shadow-2xl transition-all duration-300 ${isChatOpen ? 'h-[600px]' : 'h-[60px]'}`}>
-         <button onClick={() => setIsChatOpen(!isChatOpen)} className="p-4 bg-white hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer w-full text-left">
-            <div className="flex items-center gap-3">
-               <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600">
-                  <MessageSquare size={16} />
-               </div>
-               <span className="font-bold text-sm tracking-tight text-slate-800">Wealth Intelligence Assistant</span>
+      {/* ── FLOATING AI CHAT ── */}
+      <div className={`fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden shadow-2xl transition-all duration-500 glass-dark ${isChatOpen ? 'w-[420px] h-[640px] rounded-[32px]' : 'w-16 h-16 rounded-full hover:scale-110'}`}
+           style={{ 
+             boxShadow: isChatOpen ? '0 30px 90px rgba(0,0,0,0.2), 0 0 0 1px rgba(139,92,246,0.15)' : '0 10px 40px rgba(139,92,246,0.3)',
+             transformOrigin: 'bottom right'
+           }}>
+        <button
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className={`flex items-center justify-center cursor-pointer transition-all duration-300 ${isChatOpen ? 'p-5 w-full justify-between shrink-0' : 'w-full h-full'}`}
+          style={{ background: isChatOpen ? 'var(--bg-elevated)' : 'linear-gradient(135deg, var(--accent-violet), #6d28d9)', color: isChatOpen ? 'inherit' : '#fff' }}
+        >
+          {isChatOpen ? (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="icon-orb icon-orb-violet" style={{ width: 40, height: 40, borderRadius: 12 }}><Sparkles size={18} /></div>
+                <span className="font-bold text-base title-font">Finetra Oracle</span>
+              </div>
+              <ChevronDown size={20} className="text-muted" />
+            </>
+          ) : (
+            <Sparkles size={28} className="animate-pulse" />
+          )}
+        </button>
+
+        {isChatOpen && (
+          <>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+              {chatHistory.length === 0 ? (
+                <p className="text-xs text-center mt-10 px-6 font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+                  Ask about your portfolio, cashflow, or FIRE timeline...
+                </p>
+              ) : chatHistory.map((m, i) => (
+                <div key={i} className={`p-4 rounded-2xl text-sm leading-relaxed ${m.role === 'user' ? 'ml-8' : 'mr-8'}`}
+                  style={m.role === 'user'
+                    ? { background: 'var(--accent-violet)', color: '#fff' }
+                    : { background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+                  {m.role === 'ai' ? <div className="prose prose-sm max-w-none prose-p:my-1"><ReactMarkdown>{m.content}</ReactMarkdown></div> : m.content}
+                </div>
+              ))}
+              {loading && (
+                <div className="mr-8 p-4 rounded-2xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                  <div className="flex gap-1.5">
+                    {[0,1,2].map(i => <span key={i} className="w-2 h-2 rounded-full pulse-glow" style={{ background: 'var(--accent-violet)', animationDelay: `${i*0.2}s` }} />)}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-3">
-               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            </div>
-         </button>
-         
-         {isChatOpen && (
-           <>
-             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 custom-scrollbar">
-                {chatHistory.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 text-center mt-12 px-8 uppercase tracking-widest font-bold">Local AI Engine Ready to assist. Try asking about your portfolio or cashflow.</p>
-                ) : chatHistory.map((m, i) => (
-                   <div key={i} className={`p-4 rounded-2xl text-sm leading-relaxed ${m.role === 'user' ? 'bg-indigo-600 text-white ml-8 shadow-sm' : 'bg-white border border-slate-200 shadow-sm mr-8 prose prose-sm prose-slate max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0'}`}>
-                      {m.role === 'ai' ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}
-                   </div>
-                ))}
-             </div>
-             <form onSubmit={handleChat} className="p-4 bg-white border-t border-slate-200 relative shrink-0">
-                 <textarea 
-                    value={query} 
-                    onChange={e => setQuery(e.target.value)} 
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type a query... (Shift+Enter for new line)" 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm pr-12 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all font-medium resize-none min-h-[50px] max-h-[150px] custom-scrollbar"
-                    rows={1}
-                 />
-                 <button type="submit" aria-label="Send query to Assistant" className="absolute right-7 bottom-[26px] text-indigo-600 hover:text-indigo-800 transition-colors"><ArrowUpRight size={18} /></button>
-             </form>
-           </>
-         )}
+            <form onSubmit={handleChat} className="p-3 shrink-0 flex gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+              <textarea
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask anything… (Shift+Enter for new line)"
+                className="flex-1 input-dark resize-none text-sm"
+                rows={1}
+                style={{ minHeight: 44, maxHeight: 120 }}
+              />
+              <button type="submit" aria-label="Send" className="icon-orb icon-orb-violet shrink-0 cursor-pointer hover:opacity-80 transition-opacity" style={{ width: 44, height: 44, borderRadius: 12 }}>
+                <Send size={16} />
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];

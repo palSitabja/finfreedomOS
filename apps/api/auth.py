@@ -56,7 +56,10 @@ def get_sheets_service():
                 token.write(creds.to_json())
             logger.info("New credentials saved to token.json")
 
-    # Only rebuild the service if we don't have one or if we just got new creds
-    # In practice, build() is cheap enough but caching is better.
+    # If we already have a valid service, reuse it
+    if _SHEETS_SERVICE is not None and creds and creds.valid:
+        return _SHEETS_SERVICE
+
+    # Only rebuild the service if we don't have one or if we just got new/refreshed creds
     _SHEETS_SERVICE = build('sheets', 'v4', credentials=creds)
     return _SHEETS_SERVICE

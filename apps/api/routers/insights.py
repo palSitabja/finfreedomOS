@@ -13,9 +13,10 @@ suppress_debug_info = True
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
+import asyncio
 # ── Permanent in-memory cache (no TTL — cleared only by user action) ─────────
 _INSIGHT_CACHE: Optional[Dict[str, Any]] = None
-_INSIGHT_LOCK  = threading.Lock()   # prevents duplicate concurrent LLM calls
+_INSIGHT_LOCK  = asyncio.Lock()   # prevents duplicate concurrent LLM calls
 
 @router.delete("/cache")
 def clear_insight_cache():
@@ -25,7 +26,10 @@ def clear_insight_cache():
     return {"status": "Insight cache cleared"}
 
 @router.get("/analysis")
-def get_portfolio_analysis(force: bool = False):
+@router.get("/analysis/")
+@router.get("")
+@router.get("/")
+async def get_portfolio_analysis(force: bool = False):
     """
     Generates AI intelligence insights for the overall portfolio.
     Result is cached indefinitely until the user triggers a manual recalibration
@@ -40,7 +44,7 @@ def get_portfolio_analysis(force: bool = False):
         return _INSIGHT_CACHE
 
     # Slow path: acquire lock so only one thread calls the LLM
-    with _INSIGHT_LOCK:
+    async with _INSIGHT_LOCK:
         # Re-check after acquiring lock — another thread may have filled the cache
         if _INSIGHT_CACHE is not None and not force:
             print("[insights] Serving from cache (post-lock)")
@@ -49,8 +53,11 @@ def get_portfolio_analysis(force: bool = False):
         print("[insights] Cache miss — generating fresh AI commentary")
     try:
         # 1. Gather context
-        all_time = get_all_time_stats()
-        stocks_data = get_stocks()
+        # Run these in threads to avoid blocking the event loop
+        all_time, stocks_data = await asyncio.gather(
+            asyncio.to_thread(get_all_time_stats),
+            asyncio.to_thread(get_stocks)
+        )
         
         # Calculate key metrics
         total_income = all_time.get("total_income", 0)
@@ -90,7 +97,8 @@ def get_portfolio_analysis(force: bool = False):
         """
         
         # 4. Call LLM via configured provider
-        analysis = chat_complete(
+        from llm_provider import async_chat_complete
+        analysis = await async_chat_complete(
             system="You are the Wealth Intelligence Oracle, a professional financial advisor AI.",
             user=prompt,
         )

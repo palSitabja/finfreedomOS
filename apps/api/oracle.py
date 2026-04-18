@@ -50,30 +50,30 @@ def index_all_categories():
     
     conn.close()
 
-def query_financial_data(user_query: str):
+async def query_financial_data(user_query: str):
     """
     A Simple RAG Oracle using SQLite for data and ChromaDB for category matching.
     """
     print(f"Oracle investigating: {user_query}")
     
-    from llm_provider import chat_complete
+    from llm_provider import async_chat_complete
     from routers.stocks import get_stocks
     from sheet_parser import get_all_time_stats, get_year_data, SHEET_IDS
     
     # 1. Intent Detection
     year_match = None
-    if "2021" in user_query: year_match = 2021
-    if "2022" in user_query: year_match = 2022
-    if "2023" in user_query: year_match = 2023
-    if "2024" in user_query: year_match = 2024
-    if "2025" in user_query: year_match = 2025
-    if "2026" in user_query: year_match = 2026
+    for y in range(2021, 2027):
+        if str(y) in user_query:
+            year_match = y
+            break
     
     # 2. Structured Data Fetch (from Google Sheets)
     data_summary = ""
     if year_match and str(year_match) in SHEET_IDS:
         try:
-            year_data = get_year_data(str(year_match))
+            # We can run this in a thread since it's sync
+            import asyncio
+            year_data = await asyncio.to_thread(get_year_data, str(year_match))
             
             # Aggregate totals for the year
             exp_lines = []
@@ -94,17 +94,22 @@ def query_financial_data(user_query: str):
     
     # Fetch Portfolio and Summary Data
     portfolio = []
+    summary_stats = {}
     try:
-        portfolio = get_stocks()
-    except Exception:
-        pass
+        # Run these in threads to avoid blocking
+        import asyncio
+        portfolio, summary_stats = await asyncio.gather(
+            asyncio.to_thread(get_stocks),
+            asyncio.to_thread(get_all_time_stats)
+        )
+    except Exception as e:
+        print(f"Error gathering stats: {e}")
     
     portfolio_summary = "\n".join([
         f"- {s['ticker']}: {s['shares']} shares @ avg ₹{s['avg_price_paid']}, Current: ₹{s['current_price']}, Value: ₹{s['current_value']:,.2f} ({s['percent_change']:.2f}%)"
         for s in portfolio
     ])
     
-    summary_stats = get_all_time_stats()
     global_summary = f"""
     - Net Savings: ₹{summary_stats.get('net_savings', 0):,.2f}
     - Total Income: ₹{summary_stats.get('total_income', 0):,.2f}
@@ -130,7 +135,7 @@ def query_financial_data(user_query: str):
     Please provide a helpful, concise answer. ALWAYS base your answer strictly on the provided data. Show the math/calculations you use to arrive at your answer so the user trusts it. If no data was found to answer their question, explicitly acknowledge that.
     """
     
-    response_text = chat_complete(
+    response_text = await async_chat_complete(
         system="You are the Wealth Intelligence Assistant, a professional financial advisor AI.",
         user=prompt
     )

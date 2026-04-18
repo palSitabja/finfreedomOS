@@ -17,6 +17,11 @@ class FIREProjectionRequest(BaseModel):
     inflation_rate: float = 6.0   # 6% annual
     monthly_savings: Optional[float] = None
     goal_buffers: List[GoalBuffer] = []
+    current_age: int = 30
+    retirement_age: Optional[int] = None
+    expected_corpus: Optional[float] = None
+    insurance_cover: float = 0.0
+    enable_stress_test: bool = False
 
 @router.get("/status")
 def get_fire_status():
@@ -72,21 +77,39 @@ def get_fire_projection(req: FIREProjectionRequest):
     projection = []
     current_year = datetime.datetime.now().year
     
-    # 40-year projection
+    # 40-year projection or until age 100
     r = req.expected_return / 100
     i = req.inflation_rate / 100
     
     fi_year = None
+    fi_age = None
     
-    for year_idx in range(41):
+    # Stress test parameters
+    market_crash_year = 5 if req.enable_stress_test else -1
+    medical_emergency_year = 10 if req.enable_stress_test else -1
+    medical_cost = 1500000 # 15L medical emergency
+    
+    for year_idx in range(60):
         year = current_year + year_idx
+        age = req.current_age + year_idx
         
+        is_retired = False
+        if req.retirement_age is not None and age >= req.retirement_age:
+            is_retired = True
+        elif fi_year is not None:
+            is_retired = True # Assume retired once FI if no target age provided
+            
+        # Market growth/crash
+        actual_r = r
+        if year_idx == market_crash_year:
+            actual_r = -0.20 # 20% market crash
+            
         # Add savings and grow corpus
-        if fi_year is None:
-            corpus = (corpus + annual_savings) * (1 + r)
+        if not is_retired:
+            corpus = (corpus + annual_savings) * (1 + actual_r)
         else:
             # Post-FI: Withdraw expenses from corpus
-            corpus = (corpus - annual_expenses) * (1 + r)
+            corpus = (corpus - annual_expenses) * (1 + actual_r)
             
         # Update annual expenses with inflation
         annual_expenses *= (1 + i)
@@ -95,25 +118,35 @@ def get_fire_projection(req: FIREProjectionRequest):
         for buffer in req.goal_buffers:
             if buffer.years_from_now == year_idx:
                 corpus -= buffer.amount
+                
+        # Medical emergency shock
+        if year_idx == medical_emergency_year:
+            out_of_pocket = max(0, medical_cost - req.insurance_cover)
+            corpus -= out_of_pocket
         
-        # Check for FI milestone (25x expenses)
-        fi_needed = annual_expenses * 25
+        # Check for FI milestone
+        fi_needed = req.expected_corpus if req.expected_corpus is not None and req.expected_corpus > 0 else annual_expenses * 25
         if fi_year is None and corpus >= fi_needed:
             fi_year = year
+            fi_age = age
             
         projection.append({
             "year": year,
+            "age": age,
             "corpus": round(corpus, 2),
             "expenses": round(annual_expenses, 2),
             "target": round(fi_needed, 2),
-            "is_fi": corpus >= fi_needed
+            "is_fi": corpus >= fi_needed,
+            "event": "Market Crash (-20%)" if year_idx == market_crash_year else 
+                     f"Medical Emergency (Paid: ₹{(max(0, medical_cost - req.insurance_cover)):,.0f})" if year_idx == medical_emergency_year else None
         })
         
-        if corpus < 0: # Broke scenario
+        if corpus < 0 or age >= 100:
             break
             
     return {
         "timeline": projection,
         "fi_year": fi_year,
+        "fi_age": fi_age,
         "years_to_fi": fi_year - current_year if fi_year else None
     }

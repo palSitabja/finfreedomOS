@@ -112,3 +112,4 @@ chroma_db/
 
 # Jupyter Notebooks
 .ipynb_checkpoints
+apps/api/backend.log

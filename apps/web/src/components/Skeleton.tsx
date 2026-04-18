@@ -1,5 +1,5 @@
 /**
- * Skeleton loader components for the Financial Freedom OS dashboard.
+ * Skeleton loader components for the Finetra dashboard.
  * Uses a pulsing shimmer animation to indicate loading state.
  */
 
@@ -15,15 +15,13 @@ export function Shimmer({ className = "" }: { className?: string }) {
 /** 4-card stats row skeleton */
 export function StatCardsSkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
-          <div className="flex justify-between items-start">
-            <Shimmer className="w-9 h-9 rounded-lg" />
-            <Shimmer className="w-16 h-4 rounded-full" />
-          </div>
+        <div key={i} className="card p-6 space-y-4">
+          <Shimmer className="w-14 h-14 rounded-2xl" />
           <Shimmer className="w-24 h-3 rounded" />
           <Shimmer className="w-32 h-7 rounded-lg" />
+          <Shimmer className="w-20 h-3 rounded" />
         </div>
       ))}
     </div>
@@ -33,12 +31,12 @@ export function StatCardsSkeleton() {
 /** AI insights card skeleton */
 export function InsightCardSkeleton() {
   return (
-    <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+    <div className="card p-8 space-y-4">
       <div className="flex items-center gap-3">
-        <Shimmer className="w-9 h-9 rounded-lg" />
+        <Shimmer className="w-11 h-11 rounded-2xl" />
         <Shimmer className="w-48 h-5 rounded" />
       </div>
-      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-2">
+      <div className="rounded-2xl p-6 space-y-2" style={{ background: 'var(--bg-elevated)' }}>
         <Shimmer className="w-full h-3 rounded" />
         <Shimmer className="w-5/6 h-3 rounded" />
         <Shimmer className="w-4/6 h-3 rounded" />
@@ -64,7 +62,7 @@ export function ChartSkeleton({ height = "h-48" }: { height?: string }) {
 /** Chart card wrapper skeleton — title + chart area */
 export function ChartCardSkeleton({ height = "h-48" }: { height?: string }) {
   return (
-    <div className="bg-slate-50 rounded-3xl border border-slate-100 p-6 space-y-4">
+    <div className="card p-6 space-y-4">
       <Shimmer className="w-40 h-4 rounded" />
       <ChartSkeleton height={height} />
     </div>
@@ -74,19 +72,13 @@ export function ChartCardSkeleton({ height = "h-48" }: { height?: string }) {
 /** Table skeleton — header + N rows */
 export function TableSkeleton({ rows = 5, cols = 6 }: { rows?: number; cols?: number }) {
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden">
-      {/* Header row */}
-      <div className="bg-slate-50 px-6 py-4 flex gap-4 border-b border-slate-100">
-        {[...Array(cols)].map((_, i) => (
-          <Shimmer key={i} className="flex-1 h-3 rounded" />
-        ))}
+    <div className="overflow-hidden" style={{ borderRadius: 16 }}>
+      <div className="px-5 py-4 flex gap-4" style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
+        {[...Array(cols)].map((_, i) => <Shimmer key={i} className="flex-1 h-3 rounded" />)}
       </div>
-      {/* Data rows */}
       {[...Array(rows)].map((_, r) => (
-        <div key={r} className="px-6 py-4 flex gap-4 border-b border-slate-50">
-          {[...Array(cols)].map((_, c) => (
-            <Shimmer key={c} className={`flex-1 h-3 rounded ${c === 0 ? 'w-32' : ''}`} />
-          ))}
+        <div key={r} className="px-5 py-4 flex gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          {[...Array(cols)].map((_, c) => <Shimmer key={c} className={`flex-1 h-3 rounded ${c === 0 ? 'w-32' : ''}`} />)}
         </div>
       ))}
     </div>

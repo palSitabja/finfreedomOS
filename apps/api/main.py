@@ -15,7 +15,7 @@ logger = setup_logger("api")
 
 from routers import assets, stocks, macro, news, insights, analytics, tax, fire
 
-app = FastAPI(title="Financial Freedom OS API")
+app = FastAPI(title="Finetra API")
 
 app.include_router(assets.router)
 app.include_router(stocks.router)
@@ -48,7 +48,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Financial Freedom OS API"}
+    return {"message": "Welcome to Finetra API"}
 
 @app.get("/stats")
 def get_stats(year: Optional[int] = None):
@@ -81,10 +81,10 @@ def get_stats(year: Optional[int] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat")
-def chat_with_oracle(request: ChatRequest):
+async def chat_with_oracle(request: ChatRequest):
     """Proxies the query to our RAG Oracle."""
     try:
-        answer = query_financial_data(request.message)
+        answer = await query_financial_data(request.message)
         return {"answer": answer}
     except Exception as e:
         logger.exception("Error in chat_with_oracle")

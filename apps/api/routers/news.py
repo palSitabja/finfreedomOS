@@ -38,47 +38,84 @@ def format_ticker_for_yf(raw_ticker: str) -> str:
         ticker = ticker + ".NS"
     return ticker
 
-def analyze_news_sentiment(ticker: str, title: str) -> Dict[str, Any]:
-    """Analyzes news sentiment via the configured LLM provider."""
+async def batch_analyze_sentiment(items: List[Dict[str, Any]], provider: str = None) -> List[Dict[str, Any]]:
+    """
+    Analyzes news sentiment for multiple items in a single LLM call to reduce latency and rate limiting.
+    """
+    if not items:
+        return []
+        
     try:
-        response_text = chat_complete(
-            system="You are a Wealth Intelligence AI that analyzes financial news.",
-            user=f"""Analyze this news headline for {ticker}:
-Headline: "{title}"
+        from llm_provider import async_chat_complete
+        
+        # Prepare batch context
+        context = "\n".join([
+            f"ID: {i} | Ticker: {item['ticker']} | Headline: {item['title']}"
+            for i, item in enumerate(items)
+        ])
+        
+        system_prompt = "You are a Wealth Intelligence AI that analyzes financial news in batches."
+        user_prompt = f"""Analyze these {len(items)} news headlines and provide sentiment metadata for each.
+Return ONLY a valid JSON array of objects, with NO markdown, matching the ID provided.
 
-Provide ONLY valid JSON (no markdown, no extra text):
-{{
-  "sentiment": "Bullish" | "Bearish" | "Neutral",
-  "impact": "1-sentence summary of why this matters for the stock",
-  "score": float between -1.0 and 1.0,
-  "action": "Buy" | "Sell" | "Hold",
-  "target": "price target if mentioned, else N/A"
-}}""",
+Headlines:
+{context}
+
+JSON Structure:
+[
+  {{
+    "id": int,
+    "sentiment": "Bullish" | "Bearish" | "Neutral",
+    "impact": "1-sentence summary",
+    "score": float (-1.0 to 1.0),
+    "action": "Buy" | "Sell" | "Hold",
+    "target": "N/A"
+  }},
+  ...
+]"""
+
+        response_text = await async_chat_complete(
+            system=system_prompt,
+            user=user_prompt,
+            provider=provider
         )
+        
         content = response_text
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
         elif "```" in content:
             content = content.split("```")[1].split("```")[0]
             
-        return json.loads(content.strip())
+        batch_results = json.loads(content.strip())
+        
+        # Map results back to items
+        for res in batch_results:
+            idx = res.get("id")
+            if idx is not None and idx < len(items):
+                items[idx].update({
+                    "sentiment": res.get("sentiment", "Neutral"),
+                    "impact":    res.get("impact", "N/A"),
+                    "score":     res.get("score", 0.0),
+                    "action":    res.get("action", "Hold"),
+                    "target":    res.get("target", "N/A")
+                })
+        return items
     except Exception as e:
-        print(f"Sentiment analysis failed for {ticker}: {e}")
-        return {
-            "sentiment": "Neutral",
-            "impact": "Market fluctuations being monitored.",
-            "score": 0.0,
-            "action": "Hold",
-            "target": "N/A"
-        }
+        print(f"Batch sentiment analysis failed ({provider}): {e}")
+        # Fill with fallbacks if batch fails
+        for item in items:
+            if "sentiment" not in item:
+                item.update({"sentiment": "Neutral", "impact": "Analysis unavailable", "score": 0.0, "action": "Hold", "target": "N/A"})
+        return items
 
 @router.get("/")
-def get_portfolio_news():
+@router.get("")
+async def get_portfolio_news():
     """
     Fetches the latest news for portfolio holdings.
-    Results are cached for 6 hours per unique portfolio composition.
-    Cache auto-invalidates when stocks are added or removed.
+    Distributes batch sentiment analysis between providers to avoid rate limits.
     """
+    import asyncio
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT ticker FROM stock_holdings")
@@ -88,11 +125,9 @@ def get_portfolio_news():
     raw_tickers = list(set([r['ticker'] for r in rows]))
     yf_tickers  = [format_ticker_for_yf(t) for t in raw_tickers]
     
-    # Check cache first
     key = _cache_key(yf_tickers)
     cached = _get_cached(key)
     if cached is not None:
-        print(f"[news] Serving {len(cached)} items from cache (key={key[:40]}...)")
         return cached
     
     print(f"[news] Cache miss — fetching live news for {len(yf_tickers)} tickers")
@@ -105,49 +140,29 @@ def get_portfolio_news():
         try:
             t = yf.Ticker(ticker)
             news_items = t.news or []
-            for item in news_items[:4]:           # up to 4 per ticker
-                # yfinance ≥ 0.2.x returns dicts; older returns dicts too
-                # Content may be nested under 'content' key in newer versions
+            for item in news_items[:4]:
                 content_block = item.get("content", item)
-                
                 link  = (content_block.get("canonicalUrl", {}) or {}).get("url") \
-                        or content_block.get("clickThroughUrl", {}).get("url") \
                         or item.get("link", "")
                 title = content_block.get("title") or item.get("title", "")
                 publisher = (content_block.get("provider", {}) or {}).get("displayName") \
                             or item.get("publisher", "Unknown")
                 pub_time  = content_block.get("pubDate") or item.get("providerPublishTime")
                 
-                # Normalise pub_time to epoch int
                 if isinstance(pub_time, str):
-                    try:
-                        pub_time = int(datetime.datetime.fromisoformat(pub_time.replace("Z", "+00:00")).timestamp())
-                    except Exception:
-                        pub_time = 0
-                elif not isinstance(pub_time, int):
-                    pub_time = 0
+                    try: pub_time = int(datetime.datetime.fromisoformat(pub_time.replace("Z", "+00:00")).timestamp())
+                    except Exception: pub_time = 0
+                elif not isinstance(pub_time, int): pub_time = 0
                 
-                # Thumbnail
                 thumbnail = None
                 thumb_list = (content_block.get("thumbnail", {}) or {}).get("resolutions", [])
-                if thumb_list:
-                    thumbnail = thumb_list[0].get("url")
-                if not thumbnail:
-                    thumb_list = (item.get("thumbnail", {}) or {}).get("resolutions", [])
-                    if thumb_list:
-                        thumbnail = thumb_list[0].get("url")
+                if thumb_list: thumbnail = thumb_list[0].get("url")
                 
-                # Skip missing / duplicates
-                if not title:
-                    continue
-                if link and link in seen_links:
-                    continue
-                if title in seen_titles:
+                if not title or (link and link in seen_links) or title in seen_titles:
                     continue
                 
                 seen_links.add(link)
                 seen_titles.add(title)
-                
                 all_raw_news.append({
                     "ticker":                ticker.replace(".NS", "").replace(".BO", ""),
                     "title":                 title,
@@ -156,22 +171,30 @@ def get_portfolio_news():
                     "provider_publish_time": pub_time,
                     "thumbnail":             thumbnail,
                 })
-        except Exception as e:
-            print(f"[news] Error fetching news for {ticker}: {e}")
-            continue
+        except Exception: continue
             
-    # Sort newest-first
     all_raw_news.sort(key=lambda x: x.get("provider_publish_time") or 0, reverse=True)
     
-    # AI sentiment for top 12
-    top_news = all_raw_news[:12]
-    for item in top_news:
-        ai_data = analyze_news_sentiment(item['ticker'], item['title'])
-        item.update(ai_data)
+    # Dynamic batching and provider distribution
+    BATCH_SIZE = 6
+    MAX_ITEMS  = 24  # Limit to 24 items to prevent prompt explosion
+    top_news   = all_raw_news[:MAX_ITEMS]
     
-    # Store in cache
+    # Chunk news into batches of 6
+    batches = [top_news[i:i + BATCH_SIZE] for i in range(0, len(top_news), BATCH_SIZE)]
+    
+    # Round-robin distribution between GitHub and Groq
+    providers = ["github", "groq"]
+    tasks = []
+    for i, batch in enumerate(batches):
+        target_provider = providers[i % len(providers)]
+        tasks.append(batch_analyze_sentiment(batch, provider=target_provider))
+    
+    await asyncio.gather(*tasks)
+    
     _set_cache(key, top_news)
     return top_news
+
 
 @router.delete("/cache")
 def clear_news_cache():

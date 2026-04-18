@@ -16,6 +16,7 @@ MACRO_TICKERS = {
 }
 
 @router.get("/")
+@router.get("")
 def get_macro_signals():
     """
     Fetches intraday snapshots of major market indices and macro indicators.
