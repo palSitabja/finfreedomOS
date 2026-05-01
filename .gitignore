@@ -73,6 +73,9 @@ screenshots/
 *.jpeg
 *.gif
 *.mp4
+!**/assets/*.png
+!**/assets/*.jpg
+!**/assets/*.jpeg
 
 # Data & Reports
 *.xlsx

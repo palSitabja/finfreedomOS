@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 import os
 from dotenv import load_dotenv
 from oracle import query_financial_data
@@ -45,6 +45,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 class ChatRequest(BaseModel):
     message: str
+    history: Optional[List[Dict[str, Any]]] = None
 
 @app.get("/")
 def read_root():
@@ -63,8 +64,10 @@ def get_stats(year: Optional[int] = None):
             total_expenses  = sum(data["months"][m]["Expenses"]    for m in MONTHS)
             total_invest    = sum(data["months"][m]["Investments"]  for m in MONTHS)
             net_savings     = total_income - total_expenses
+            bank_balance    = data["months"]["Dec"]["Ending balance"]
             return {
                 "net_savings":       net_savings,
+                "bank_balance":      bank_balance,
                 "total_income":      total_income,
                 "total_expenses":    total_expenses,
                 "investments":       total_invest,
@@ -84,8 +87,8 @@ def get_stats(year: Optional[int] = None):
 async def chat_with_oracle(request: ChatRequest):
     """Proxies the query to our RAG Oracle."""
     try:
-        answer = await query_financial_data(request.message)
-        return {"answer": answer}
+        answer, thoughts = await query_financial_data(request.message, request.history)
+        return {"answer": answer, "thoughts": thoughts}
     except Exception as e:
         logger.exception("Error in chat_with_oracle")
         raise HTTPException(status_code=500, detail=str(e))

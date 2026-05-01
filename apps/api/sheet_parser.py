@@ -30,7 +30,6 @@ SHEET_IDS: Dict[str, str] = {
 }
 
 # Years where row offsets may be inconsistent — parse defensively
-LEGACY_YEARS = {"2021", "2022", "2023"}
 
 # ── Column constants ──────────────────────────────────────────────────────────
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -41,205 +40,6 @@ MONTH_COL_START = 3   # Col D = Jan
 MONTH_COL_END   = 14  # Col O = Dec
 TOTAL_COL       = 15  # Col P
 AVG_COL         = 16  # Col Q
-
-# ── Income tab: exact row layout ─────────────────────────────────────────────
-# Row numbers are 1-indexed (as shown in the spreadsheet)
-INCOME_GROUPS = {
-    "Wages": {
-        "total_row": 3,
-        "items": {
-            "Pay slip":         4,
-            "Internet Claim":   5,
-            "Tips":             6,
-            "Bonus":            7,
-            "Commission":       8,
-            "Other":            9,
-        }
-    },
-    "Other": {
-        "total_row": 12,
-        "items": {
-            "Transfer from savings": 13,
-            "Interest income":       14,
-            "Dividends":             15,
-            "SGB Interest":          16,
-            "Stock Selling":         17,
-            "Gifts":                 18,
-            "Refunds":               19,
-            "Investment return":     20,
-        }
-    }
-}
-
-# ── Expenses tab: exact row layout ───────────────────────────────────────────
-EXPENSE_GROUPS = {
-    "Parents": {
-        "total_row": 3,
-        "items": {
-            "Activities":   4,
-            "Insurance":    5,
-            "Medical":      6,
-            "Gift":         7,
-            "Clothing":     8,
-            "Supplements":  9,
-            "Other":        10,
-        }
-    },
-    "Debt": {
-        "total_row": 13,
-        "items": {
-            "Credit cards":  14,
-            "Student loans": 15,
-            "Other loans":   16,
-            "Taxes":         17,
-            "Other":         18,
-        }
-    },
-    "Education": {
-        "total_row": 21,
-        "items": {
-            "Tuition":       22,
-            "Books":         23,
-            "Music lessons": 24,
-            "Other":         25,
-        }
-    },
-    "Entertainment": {
-        "total_row": 28,
-        "items": {
-            "Books":              29,
-            "Concerts/shows":     30,
-            "Games":              31,
-            "Hobbies":            32,
-            "Films":              33,
-            "Music":              34,
-            "Outdoor activities": 35,
-            "Photography":        36,
-            "Sport":              37,
-            "Theatre/plays":      38,
-            "Other":              39,
-        }
-    },
-    "Everyday": {
-        "total_row": 43,
-        "items": {
-            "Groceries":    44,
-            "Restaurants":  45,
-            "Clothes":      46,
-            "Shoes":        47,
-            "Electronics":  48,
-            "Other":        49,
-        }
-    },
-    "Gifts": {
-        "total_row": 54,
-        "items": {
-            "Family":       55,
-            "Friends":      56,
-            "Other":        57,
-        }
-    },
-    "Health/Medical": {
-        "total_row": 60,
-        "items": {
-            "Doctor":       61,
-            "Medicine":     62,
-        }
-    },
-    "Home": {
-        "total_row": 68,
-        "items": {
-            "Rent":              69,
-            "Maintenance":       70,
-            "Improvements":      71,
-            "Furniture":         72,
-            "Supplies":          73,
-            "Garden":            74,
-            "Other":             75,
-        }
-    },
-    "Insurance": {
-        "total_row": 80,
-        "items": {
-            "Car":          81,
-            "Health":       82,
-            "Life":         83,
-            "Home":         84,
-            "Other":        85,
-        }
-    },
-    "Miscellaneous": {
-        "total_row": 88,
-        "items": {
-            "Miscellaneous":                  89,
-            "Calculation error adjustment":   90,
-            "Other":                          91,
-        }
-    },
-    "Technology": {
-        "total_row": 94,
-        "items": {
-            "Software":     95,
-            "Hardware":     96,
-            "Apps":         97,
-            "Other":        98,
-        }
-    },
-    "Transportation": {
-        "total_row": 102,
-        "items": {
-            "Fuel":         103,
-            "Fastag":       104,
-            "Service":      105,
-            "Repairs":      106,
-            "Taxi":         107,
-            "Parking":      108,
-            "Other":        109,
-        }
-    },
-    "Travel": {
-        "total_row": 112,
-        "items": {
-            "Hotels":       113,
-            "Flights":      114,
-            "Train":        115,
-            "Activities":   116,
-            "Food":         117,
-            "Other":        118,
-        }
-    },
-    "Utilities": {
-        "total_row": 122,
-        "items": {
-            "Phone":        123,
-            "Internet":     124,
-            "Electricity":  125,
-            "Water":        126,
-            "Gas":          127,
-            "Cable/TV":     128,
-            "Other":        129,
-        }
-    },
-    "Investments": {
-        "total_row": 134,
-        "items": {
-            "MF SIP":       135,
-            "Gold":         136,
-            "Silver":       137,
-            "PPF":          138,
-            "Crypto":       139,
-            "Stocks":       140,
-            "NPS":          141,
-            "EPF":          142,
-            "Other":        143,
-        }
-    },
-}
-
-# ── Assets tab ────────────────────────────────────────────────────────────────
-# Row 3 = header, rows 4-13 = data, row 14 = Total
-ASSETS_RANGE = "Assets!A3:K15"
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -279,57 +79,35 @@ def _fetch_range(spreadsheet_id: str, range_str: str) -> List[List[Any]]:
 def _parse_tab(
     spreadsheet_id: str,
     tab_name: str,
-    groups: Dict[str, Any],
-    fetch_range_end: str,
-    is_legacy: bool = False,
+    fetch_range_end: str = "Q",
 ) -> Dict[str, Any]:
     """
-    Generic parser for Income and Expenses tabs.
-    Fetches the full tab data and extracts each group's total + sub-items
-    by hardcoded row offsets.
-    Returns: { group_name: { total: {monthly}, items: { item_name: {monthly} } } }
-
-    For legacy years (2021-2023), each group is parsed defensively:
-    if a specific row is out of bounds or malformed, it falls back to zeros
-    rather than crashing.
+    Generic dynamic parser for Income and Expenses tabs.
+    Scans Column A for Group Names and Column C for Item Names.
+    Automatically adapts to new rows or missing rows.
     """
-    max_row = max(
-        max(row_num for row_num in grp["items"].values())
-        for grp in groups.values()
-    )
-    range_str = f"'{tab_name}'!A1:{fetch_range_end}{max_row}"
+    range_str = f"'{tab_name}'!A1:{fetch_range_end}300"
     raw = _fetch_range(spreadsheet_id, range_str)
-
+    
     result: Dict[str, Any] = {}
-    for group_name, group_def in groups.items():
-        try:
-            total_row_idx = group_def["total_row"] - 1
-            group_row = raw[total_row_idx] if total_row_idx < len(raw) else []
-            group_monthly = _extract_monthly(group_row)
-
-            items: Dict[str, Dict[str, float]] = {}
-            for item_name, item_row_num in group_def["items"].items():
-                try:
-                    item_idx = item_row_num - 1
-                    item_row = raw[item_idx] if item_idx < len(raw) else []
-                    items[item_name] = _extract_monthly(item_row)
-                except Exception as e:
-                    if is_legacy:
-                        items[item_name] = {m: 0.0 for m in MONTHS}
-                        items[item_name].update({"Total": 0.0, "Average": 0.0})
-                    else:
-                        raise
-
-            result[group_name] = {"total": group_monthly, "items": items}
-        except Exception as e:
-            if is_legacy:
-                logger.warning(f"Legacy year — skipping group {group_name} in {tab_name}: {e}")
-                empty = {m: 0.0 for m in MONTHS}
-                empty.update({"Total": 0.0, "Average": 0.0})
-                result[group_name] = {"total": empty, "items": {}}
-            else:
-                logger.exception(f"Failed to parse group {group_name} in {tab_name}")
-                raise
+    current_group = None
+    
+    for row in raw:
+        col_a = str(row[0]).strip() if len(row) > 0 else ""
+        col_c = str(row[2]).strip() if len(row) > 2 else ""
+        
+        if col_a and col_c == "Monthly totals:":
+            current_group = col_a
+            if current_group not in result:
+                result[current_group] = {"total": _extract_monthly(row), "items": {}}
+                logger.info(f"Parsed group {current_group} in {tab_name}: Total={result[current_group]['total'].get('Total', 0)}")
+        elif not col_a and col_c and current_group:
+            item_name = col_c
+            # Skip empty summary headers
+            if item_name in ("Monthly totals:", "Income", "Expenses", "Summary", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"):
+                continue
+            result[current_group]["items"][item_name] = _extract_monthly(row)
+            
     return result
 
 
@@ -343,23 +121,20 @@ def _parse_setup(spreadsheet_id: str) -> float:
 
 def _parse_assets(spreadsheet_id: str) -> List[Dict[str, Any]]:
     """
-    Parse the Assets tab investment tracker.
-    Columns (0-indexed from A):
-      0=Name, 1=Invested Amount, 2=Current Amount,
-      3=Absolute Return%, 4=XIRR%, 5=CAGR%,
-      6=Start-End, 7=Holding Tenure
-    Row 0 = header, rows 1-10 = data, row 11 = Total
+    Parse the Assets tab investment tracker dynamically.
     """
-    raw = _fetch_range(spreadsheet_id, ASSETS_RANGE)
+    raw = _fetch_range(spreadsheet_id, "Assets!A3:K200")
     if not raw:
         return []
 
     assets = []
-    # Skip row 0 (header), stop before last row (Total)
-    for row in raw[1:-1]:
+    # Skip row 0 (header)
+    for row in raw[1:]:
         name = row[0] if len(row) > 0 else ""
-        if not name or name.lower() == "total":
+        if not name:
             continue
+        if name.lower() == "total":
+            break
         assets.append({
             "name":             name,
             "invested_amount":  _parse_number(row[1] if len(row) > 1 else ""),
@@ -384,11 +159,10 @@ def get_year_data(year: str) -> Dict[str, Any]:
         raise ValueError(f"No sheet configured for year {year_str}. Available: {list(SHEET_IDS.keys())}")
 
     sid = SHEET_IDS[year_str]
-    is_legacy = year_str in LEGACY_YEARS
 
     starting_balance = _parse_setup(sid)
-    income   = _parse_tab(sid, "Income",   INCOME_GROUPS,  "Q", is_legacy=is_legacy)
-    expenses = _parse_tab(sid, "Expenses", EXPENSE_GROUPS, "Q", is_legacy=is_legacy)
+    income   = _parse_tab(sid, "Income", "Q")
+    expenses = _parse_tab(sid, "Expenses", "Q")
     assets   = _parse_assets(sid)
 
     # ── Derived summary (mirrors the Summary tab) ─────────────────────────
@@ -402,17 +176,29 @@ def get_year_data(year: str) -> Dict[str, Any]:
         total_expenses = sum(
             grp["total"].get(month, 0) for grp in expenses.values()
         )
+        # Investments is a special group that we track separately
         investments = expenses.get("Investments", {}).get("total", {}).get(month, 0)
-        actual_expenses = total_expenses - investments     # Expense-Invest metric
-        net_savings = total_income - total_expenses
-        running_balance += net_savings
-
+        
+        # actual_expenses are the "consumption" expenses
+        actual_expenses = total_expenses - investments
+        
+        # net_savings is the "savings amount" (Income - Consumption)
+        # This is what most users want to see as their "savings"
+        net_savings = total_income - actual_expenses
+        
+        # cash_surplus is the residual cash (Income - All Outflows)
+        # This is what updates the bank account balance
+        cash_surplus = total_income - total_expenses
+        
+        running_balance += cash_surplus
+        
         months_summary[month] = {
             "Income":           total_income,
             "Expenses":         total_expenses,
             "Investments":      investments,
             "Actual Expenses":  actual_expenses,
             "Net savings":      net_savings,
+            "Cash surplus":     cash_surplus,
             "Ending balance":   running_balance,
         }
 
@@ -435,20 +221,39 @@ def get_all_time_stats() -> Dict[str, Any]:
         "total_income":   0.0,
         "total_expenses": 0.0,
         "investments":    0.0,
+        "net_savings":    0.0,
+        "transaction_count": 0,
         "period":         "All-Time",
     }
-    for year in SHEET_IDS:
+    
+    all_years = sorted(SHEET_IDS.keys())
+    
+    for year in all_years:
         try:
             data = get_year_data(year)
             for m in MONTHS:
                 md = data["months"][m]
+                if md["Income"] > 0 or md["Expenses"] > 0:
+                    totals["transaction_count"] += 1
                 totals["total_income"]   += md["Income"]
                 totals["total_expenses"] += md["Expenses"]
                 totals["investments"]    += md["Investments"]
+                # net_savings here is (Income - Actual Expenses)
+                totals["net_savings"]    += md["Net savings"]
         except Exception as e:
             logger.exception(f"Failed to fetch or parse data for year {year}")
 
-    totals["net_savings"] = totals["total_income"] - totals["total_expenses"]
+    # Bank Balance is the cash residual at the end of the latest tracked year
+    try:
+        latest_year = all_years[-1]
+        latest_data = get_year_data(latest_year)
+        # Use December to match the user's expected "880k" value which is the year-end balance
+        totals["bank_balance"] = latest_data["months"]["Dec"]["Ending balance"]
+    except Exception as e:
+        logger.error(f"Failed to determine current bank balance: {e}")
+        # Fallback to cumulative cash surplus
+        totals["bank_balance"] = totals["total_income"] - totals["total_expenses"]
+
     totals["actual_expenses"] = totals["total_expenses"] - totals["investments"]
     return totals
 

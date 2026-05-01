@@ -110,6 +110,7 @@ JSON Structure:
 
 @router.get("/")
 @router.get("")
+@router.get("/portfolio")
 async def get_portfolio_news():
     """
     Fetches the latest news for portfolio holdings.
