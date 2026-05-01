@@ -51,6 +51,10 @@ class ChatRequest(BaseModel):
 def read_root():
     return {"message": "Welcome to Finetra API"}
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 @app.get("/stats")
 def get_stats(year: Optional[int] = None):
     """
@@ -155,4 +159,6 @@ def get_detailed_stats(year: int):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("API_PORT", 8000))
+    logger.info(f"Starting server on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)
