@@ -25,13 +25,14 @@ function pct(n: number) {
 const ALLOCATION_COLORS = Colors.chart;
 
 export default function PortfolioScreen() {
-  const { stocks, loading: stocksLoading, error: stocksError, refetch: refetchStocks } = useStocks();
+  const { stocks, metadata: sm, loading: stocksLoading, error: stocksError, refetch: refetchStocks } = useStocks();
   const { assets, loading: assetsLoading, error: assetsError, refetch: refetchAssets } = useAssets();
   const [refreshing, setRefreshing] = useState(false);
   
   const onRefresh = async () => { 
     setRefreshing(true); 
-    await Promise.all([refetchStocks(), refetchAssets()]); 
+    // Passing true to refetchStocks triggers a fresh sheet fetch and DB update
+    await Promise.all([refetchStocks(true), refetchAssets()]); 
     setRefreshing(false); 
   };
 
@@ -70,6 +71,11 @@ export default function PortfolioScreen() {
           </View>
           <View style={styles.heroIconWrap}>
             <Ionicons name="pie-chart" size={24} color="#FFF" />
+            {sm.is_cached && (
+               <View style={styles.heroCacheBadge}>
+                 <Text style={styles.heroCacheText}>CACHED</Text>
+               </View>
+            )}
           </View>
         </View>
 
@@ -86,6 +92,12 @@ export default function PortfolioScreen() {
             </Text>
           </View>
         </View>
+        
+        {sm.last_updated && (
+          <Text style={styles.heroTimestamp}>
+            Last Synced: {sm.last_updated.split(' ')[1]}
+          </Text>
+        )}
       </GradientCard>
 
       <SectionHeader
@@ -251,4 +263,25 @@ const styles = StyleSheet.create({
   emptyCard: { padding: 40, alignItems: 'center' },
   emptyTitle: { ...Type.titleMedium, color: Colors.onSurface, marginBottom: 8 },
   emptySub: { ...Type.bodyMedium, color: Colors.onSurfaceVariant, textAlign: 'center', lineHeight: 20 },
+  heroTimestamp: {
+    ...Type.labelSmall,
+    color: 'rgba(255,255,255,0.4)',
+    textAlign: 'right',
+    marginTop: 12,
+    fontSize: 9,
+  },
+  heroCacheBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  heroCacheText: {
+    color: '#FFF',
+    fontSize: 7,
+    fontWeight: '900',
+  },
 });

@@ -6,11 +6,14 @@ export function useStats(year?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
-      const url = year && year !== 'All Time' ? `${API_BASE}/stats?year=${year}` : `${API_BASE}/stats`;
+      let url = year && year !== 'All Time' ? `${API_BASE}/stats?year=${year}` : `${API_BASE}/stats`;
+      if (refresh) {
+        url += (url.includes('?') ? '&' : '?') + 'refresh=true';
+      }
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -80,18 +83,19 @@ export function useInsights() {
 }
 
 export function useStocks() {
-  const [stocks, setStocks] = useState<any[]>([]);
+  const [data, setData] = useState<any>({ holdings: [], is_cached: false, last_updated: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStocks = useCallback(async () => {
+  const fetchStocks = useCallback(async (refresh: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/stocks`);
+      const url = refresh ? `${API_BASE}/stocks?refresh=true` : `${API_BASE}/stocks`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setStocks(Array.isArray(data) ? data : data.holdings || []);
+      const json = await res.json();
+      setData(json);
     } catch (e: any) {
       setError(e.message || 'Failed to load stocks');
     } finally {
@@ -101,7 +105,13 @@ export function useStocks() {
 
   useEffect(() => { fetchStocks(); }, [fetchStocks]);
 
-  return { stocks, loading, error, refetch: fetchStocks };
+  return { 
+    stocks: data.holdings || [], 
+    metadata: { is_cached: data.is_cached, last_updated: data.last_updated },
+    loading, 
+    error, 
+    refetch: fetchStocks 
+  };
 }
 
 // ── Assets ────────────────────────────────────────────────────────────────────

@@ -75,9 +75,12 @@ async def get_portfolio_analysis(force: bool = False):
         risk_level = "High" if lifestyle_risk == "High" else investment_risk
         health_status = "Excellent" if net_savings > total_expenses * 2 else "Stable" if net_savings > 0 else "Review Needed"
         
+        # Extract holdings list from the new metadata-wrapped response
+        stocks_list = stocks_data.get("holdings", []) if isinstance(stocks_data, dict) else stocks_data
+        
         holdings_summary = [
             f"{s['ticker']}: ₹{s['current_value']:,.0f} ({s['percent_change']:.1f}% return)"
-            for s in stocks_data
+            for s in stocks_list
         ]
         holdings_str = "\n".join(holdings_summary)
         

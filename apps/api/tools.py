@@ -79,16 +79,21 @@ async def tool_fetch_financial_summary() -> str:
         latest_year = sorted(SHEET_IDS.keys())[-1]
         latest_data = await asyncio.to_thread(get_year_data, latest_year)
         
-        # Calculate monthly average for the latest year
-        months_with_data = [m for m, md in latest_data["months"].items() if md["Income"] > 0 or md["Expenses"] > 0]
-        num_months = len(months_with_data) if months_with_data else 1
+        # Calculate monthly averages separately for income and expenses
+        months_with_income = [m for m, md in latest_data["months"].items() if md["Income"] > 0]
+        months_with_expenses = [m for m, md in latest_data["months"].items() if md["Expenses"] > 0]
+        
+        num_months_inc = len(months_with_income) if months_with_income else 1
+        num_months_exp = len(months_with_expenses) if months_with_expenses else 1
+        
         current_year_income = sum(md["Income"] for md in latest_data["months"].values())
         current_year_expenses = sum(md["Expenses"] for md in latest_data["months"].values())
-        avg_monthly_income = current_year_income / num_months
-        avg_monthly_expenses = current_year_expenses / num_months
+        
+        avg_monthly_income = current_year_income / num_months_inc
+        avg_monthly_expenses = current_year_expenses / num_months_exp
 
-        # Fix to include total months tracked for Global Stats
-        total_months_tracked = len(SHEET_IDS.keys()) * 12
+        # Use the actual number of months with data from global stats
+        total_months_tracked = summary_stats.get('transaction_count', 0)
 
         return f"""
         Liquid Bank Balance: ₹{summary_stats.get('bank_balance', 0):,.2f}

@@ -13,11 +13,17 @@ NOTE: Google Sheets API returns 0-indexed arrays.
   Column A = index 0, B = 1, C = 2, D = 3, E = 4, ... O = 14, P = 15, Q = 16
 """
 
+import time
 from typing import Dict, Any, Optional, List
 from sheets import fetch_sheet_data, get_spreadsheet_metadata
 from logger import setup_logger
 
 logger = setup_logger("sheet_parser")
+
+# ── Cache Configuration ──────────────────────────────────────────────────────
+# Simple in-memory cache to prevent hitting Google Sheets API quota limits
+_CACHE: Dict[str, Any] = {}
+CACHE_TTL = 300  # 5 minutes in seconds
 
 # ── Spreadsheet IDs ──────────────────────────────────────────────────────────
 SHEET_IDS: Dict[str, str] = {
@@ -42,6 +48,30 @@ TOTAL_COL       = 15  # Col P
 AVG_COL         = 16  # Col Q
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _get_cached_data(key: str) -> Optional[Dict[str, Any]]:
+    """Retrieve data from cache if it exists and hasn't expired."""
+    if key in _CACHE:
+        data, expiry = _CACHE[key]
+        if time.time() < expiry:
+            logger.info(f"CACHE HIT: Serving {key} from memory (expires in {int(expiry - time.time())}s)")
+            # Return data with cache metadata
+            return {
+                "data": data,
+                "is_cached": True,
+                "last_updated": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiry - CACHE_TTL))
+            }
+        else:
+            logger.info(f"CACHE EXPIRED: {key} is stale, removing.")
+            del _CACHE[key]
+    return None
+
+
+def _set_cached_data(key: str, data: Any, ttl: int = CACHE_TTL):
+    """Store data in cache with an expiry timestamp."""
+    logger.info(f"CACHE SET: Storing {key} for {ttl}s")
+    _CACHE[key] = (data, time.time() + ttl)
+
 
 def _parse_number(val: Any) -> float:
     """Convert a cell value (string with ₹, commas, %, or empty) to float."""
@@ -118,52 +148,102 @@ def _parse_setup(spreadsheet_id: str) -> float:
         return _parse_number(raw[0][0])
     return 0.0
 
+    return assets
 
-def _parse_assets(spreadsheet_id: str) -> List[Dict[str, Any]]:
+
+def _parse_assets_and_stocks(spreadsheet_id: str) -> Dict[str, Any]:
     """
-    Parse the Assets tab investment tracker dynamically.
+    Parse the Assets tab for both general investments AND individual stocks in one go.
     """
-    raw = _fetch_range(spreadsheet_id, "Assets!A3:K200")
+    # Fetch a larger range to get everything in the tab in one request
+    raw = _fetch_range(spreadsheet_id, "Assets!A1:K200")
     if not raw:
-        return []
+        return {"assets": [], "individual_stocks": []}
 
     assets = []
-    # Skip row 0 (header)
-    for row in raw[1:]:
-        name = row[0] if len(row) > 0 else ""
-        if not name:
+    stocks = []
+    
+    # 1. Parse General Assets (starts around row 3)
+    # Header for assets is usually at row 3 (index 2)
+    assets_started = False
+    for i, row in enumerate(raw):
+        if not row: continue
+        name = str(row[0]).strip()
+        if name.lower() == "PPF".lower() or name.lower() == "Investmen Name".lower():
+            assets_started = True
+            if name.lower() == "Investmen Name".lower(): continue
+            
+        if assets_started:
+            if name.lower() == "total" or not name:
+                assets_started = False
+                continue
+            assets.append({
+                "name":             name,
+                "invested_amount":  _parse_number(row[1] if len(row) > 1 else ""),
+                "current_amount":   _parse_number(row[2] if len(row) > 2 else ""),
+                "absolute_return":  _parse_number(row[3] if len(row) > 3 else ""),
+                "xirr":             _parse_number(row[4] if len(row) > 4 else ""),
+                "cagr":             _parse_number(row[5] if len(row) > 5 else ""),
+                "tenure_years":     _parse_number(row[7] if len(row) > 7 else ""),
+            })
+
+    # 2. Parse Individual Stocks (starts after 'Ticker' header)
+    stocks_started = False
+    for row in raw:
+        if not row: continue
+        ticker = str(row[0]).strip()
+        if ticker.lower() == "ticker":
+            stocks_started = True
             continue
-        if name.lower() == "total":
-            break
-        assets.append({
-            "name":             name,
-            "invested_amount":  _parse_number(row[1] if len(row) > 1 else ""),
-            "current_amount":   _parse_number(row[2] if len(row) > 2 else ""),
-            "absolute_return":  _parse_number(row[3] if len(row) > 3 else ""),
-            "xirr":             _parse_number(row[4] if len(row) > 4 else ""),
-            "cagr":             _parse_number(row[5] if len(row) > 5 else ""),
-            "tenure_years":     _parse_number(row[7] if len(row) > 7 else ""),
-        })
-    return assets
+        if stocks_started:
+            if ticker.lower() == "total" or not ticker:
+                if stocks: break # Done
+                continue
+            stocks.append({
+                "ticker": ticker,
+                "avg_price_paid": _parse_number(row[2] if len(row) > 2 else "0"),
+                "shares":         _parse_number(row[3] if len(row) > 3 else "0"),
+                "exit_price":     _parse_number(row[9] if len(row) > 9 else "") or None,
+            })
+
+    return {"assets": assets, "individual_stocks": stocks}
 
 
 # ── Main public API ───────────────────────────────────────────────────────────
 
-def get_year_data(year: str) -> Dict[str, Any]:
+def get_year_data(year: str, force_refresh: bool = False) -> Dict[str, Any]:
     """
     Fetch and parse all data for a given year directly from Google Sheets.
-    Returns a fully structured dict with income, expenses, and assets.
+    Uses caching to prevent hitting quota limits.
     """
     year_str = str(year)
+    cache_key = f"year_data_{year_str}"
+    
+    if not force_refresh:
+        cached_resp = _get_cached_data(cache_key)
+        if cached_resp:
+            # Flatten for internal and external use
+            res = dict(cached_resp["data"])
+            res["is_cached"] = True
+            res["last_updated"] = cached_resp["last_updated"]
+            return res
+    else:
+        logger.info(f"FORCE REFRESH: Bypassing cache for year {year_str}")
+
     if year_str not in SHEET_IDS:
         raise ValueError(f"No sheet configured for year {year_str}. Available: {list(SHEET_IDS.keys())}")
 
     sid = SHEET_IDS[year_str]
+    logger.info(f"Fetching fresh data for {year_str}...")
 
+    # We still fetch these, but with _parse_assets_and_stocks we've reduced 2 calls to 1.
     starting_balance = _parse_setup(sid)
     income   = _parse_tab(sid, "Income", "Q")
     expenses = _parse_tab(sid, "Expenses", "Q")
-    assets   = _parse_assets(sid)
+    asset_info = _parse_assets_and_stocks(sid)
+    
+    assets = asset_info["assets"]
+    individual_stocks = asset_info["individual_stocks"]
 
     # ── Derived summary (mirrors the Summary tab) ─────────────────────────
     months_summary: Dict[str, Any] = {}
@@ -202,21 +282,39 @@ def get_year_data(year: str) -> Dict[str, Any]:
             "Ending balance":   running_balance,
         }
 
-    return {
+    result = {
         "year":              year_str,
         "starting_balance":  starting_balance,
         "months":            months_summary,
         "income":            income,
         "expenses":          expenses,
         "assets":            assets,
+        "individual_stocks": individual_stocks,
     }
+    
+    result["is_cached"] = False
+    result["last_updated"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    
+    _set_cached_data(cache_key, result)
+    return result
 
 
-def get_all_time_stats() -> Dict[str, Any]:
+def get_all_time_stats(force_refresh: bool = False) -> Dict[str, Any]:
     """
     Aggregate stats across all available years.
-    Used by /stats (no year filter).
+    Uses caching to protect Google Sheets quota.
     """
+    cache_key = "all_time_stats"
+    
+    if not force_refresh:
+        cached_resp = _get_cached_data(cache_key)
+        if cached_resp:
+            res = dict(cached_resp["data"])
+            res["is_cached"] = True
+            res["last_updated"] = cached_resp["last_updated"]
+            return res
+    else:
+        logger.info("FORCE REFRESH: Bypassing cache for all-time stats")
     totals = {
         "total_income":   0.0,
         "total_expenses": 0.0,
@@ -230,7 +328,8 @@ def get_all_time_stats() -> Dict[str, Any]:
     
     for year in all_years:
         try:
-            data = get_year_data(year)
+            # If the top-level is force refreshed, propagate it down
+            data = get_year_data(year, force_refresh=force_refresh)
             for m in MONTHS:
                 md = data["months"][m]
                 if md["Income"] > 0 or md["Expenses"] > 0:
@@ -246,7 +345,7 @@ def get_all_time_stats() -> Dict[str, Any]:
     # Bank Balance is the cash residual at the end of the latest tracked year
     try:
         latest_year = all_years[-1]
-        latest_data = get_year_data(latest_year)
+        latest_data = get_year_data(latest_year, force_refresh=force_refresh)
         # Use December to match the user's expected "880k" value which is the year-end balance
         totals["bank_balance"] = latest_data["months"]["Dec"]["Ending balance"]
     except Exception as e:
@@ -255,6 +354,10 @@ def get_all_time_stats() -> Dict[str, Any]:
         totals["bank_balance"] = totals["total_income"] - totals["total_expenses"]
 
     totals["actual_expenses"] = totals["total_expenses"] - totals["investments"]
+    totals["is_cached"] = False
+    totals["last_updated"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    
+    _set_cached_data(cache_key, totals)
     return totals
 
 

@@ -13,7 +13,7 @@ load_dotenv()
 
 logger = setup_logger("api")
 
-from routers import assets, stocks, macro, news, insights, analytics, tax, fire
+from routers import assets, stocks, macro, news, insights, analytics, tax, fire, chat
 
 app = FastAPI(title="Finetra API")
 
@@ -25,6 +25,7 @@ app.include_router(insights.router)
 app.include_router(analytics.router)
 app.include_router(tax.router)
 app.include_router(fire.router)
+app.include_router(chat.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,9 +44,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal Server Error. Please check server logs for details."}
     )
 
-class ChatRequest(BaseModel):
-    message: str
-    history: Optional[List[Dict[str, Any]]] = None
 
 @app.get("/")
 def read_root():
@@ -56,14 +54,14 @@ def health_check():
     return {"status": "ok"}
 
 @app.get("/stats")
-def get_stats(year: Optional[int] = None):
+def get_stats(year: Optional[int] = None, refresh: bool = False):
     """
     Returns high-level summary stats.
     Reads directly from Google Sheets via sheet_parser.
     """
     try:
         if year:
-            data = get_year_data(str(year))
+            data = get_year_data(str(year), force_refresh=refresh)
             total_income    = sum(data["months"][m]["Income"]      for m in MONTHS)
             total_expenses  = sum(data["months"][m]["Expenses"]    for m in MONTHS)
             total_invest    = sum(data["months"][m]["Investments"]  for m in MONTHS)
@@ -80,31 +78,22 @@ def get_stats(year: Optional[int] = None):
                 "period":            str(year),
             }
         else:
-            stats = get_all_time_stats()
+            stats = get_all_time_stats(force_refresh=refresh)
             stats["transaction_count"] = len(SHEET_IDS) * 12
             return stats
     except Exception as e:
         logger.exception(f"Error fetching stats for year {year}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/chat")
-async def chat_with_oracle(request: ChatRequest):
-    """Proxies the query to our RAG Oracle."""
-    try:
-        answer, thoughts = await query_financial_data(request.message, request.history)
-        return {"answer": answer, "thoughts": thoughts}
-    except Exception as e:
-        logger.exception("Error in chat_with_oracle")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/stats/detailed")
-def get_detailed_stats(year: int):
+def get_detailed_stats(year: int, refresh: bool = False):
     """
     Returns a full monthly + category breakdown for a specific year.
     Reads directly from Google Sheets via sheet_parser — no SQL.
     """
     try:
-        data = get_year_data(str(year))
+        data = get_year_data(str(year), force_refresh=refresh)
 
         # Enrich months with category/group breakdowns for the frontend
         months_enriched = {}

@@ -29,7 +29,8 @@ export default function DashboardScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([rs(), ri()]);
+    // Passing 'true' to rs (useStats refetch) triggers a force refresh on the BE
+    await Promise.all([rs(true), ri()]);
     setRefreshing(false);
   };
 
@@ -47,11 +48,19 @@ export default function DashboardScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} progressBackgroundColor={Colors.surface} />}
     >
       {/* Year Filter Chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
-        {YEARS.map(y => (
-          <Chip key={y} label={y} selected={year === y} onPress={() => setYear(y)} />
-        ))}
-      </ScrollView>
+      <View style={styles.chipHeader}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
+          {YEARS.map(y => (
+            <Chip key={y} label={y} selected={year === y} onPress={() => setYear(y)} />
+          ))}
+        </ScrollView>
+        {stats?.is_cached && (
+          <View style={styles.cacheIndicator}>
+            <Ionicons name="cloud-done-outline" size={12} color={Colors.onSurfaceMuted} />
+            <Text style={styles.cacheText}>Cached</Text>
+          </View>
+        )}
+      </View>
 
       {/* Hero Card */}
       <GradientCard
@@ -81,6 +90,12 @@ export default function DashboardScreen() {
             <Text style={styles.heroMetaValue}>{fmt(stats?.total_income ?? 0)}</Text>
           </View>
         </View>
+        
+        {stats?.last_updated && (
+          <Text style={styles.syncTimestamp}>
+            Synced: {stats.last_updated.split(' ')[1]}
+          </Text>
+        )}
       </GradientCard>
 
       {/* Error */}
@@ -165,8 +180,35 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content:   { padding: Spacing.xl, paddingBottom: 40 },
 
-  chipRow:        { marginHorizontal: -Spacing.xl, marginBottom: Spacing.xl },
+  chipRow:        { flex: 1 },
   chipRowContent: { paddingHorizontal: Spacing.xl, gap: 8 },
+  chipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  cacheIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceVariant,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: Spacing.xl,
+    gap: 4,
+  },
+  cacheText: {
+    ...Type.labelSmall,
+    color: Colors.onSurfaceMuted,
+    fontSize: 10,
+  },
+  syncTimestamp: {
+    ...Type.labelSmall,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'right',
+    marginTop: 8,
+    fontSize: 9,
+  },
 
   heroCard: {
     marginTop: Spacing.md,

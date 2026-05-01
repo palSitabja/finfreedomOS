@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from database import get_db_connection
 from typing import List, Optional, Dict
+import time
+from sheet_parser import get_year_data
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 
@@ -20,6 +22,11 @@ class StockResponse(StockCreate):
     gain_loss: float
     percent_change: float
     trend: List[float] = []
+
+class StockListResponse(BaseModel):
+    holdings: List[StockResponse]
+    is_cached: bool
+    last_updated: str
 
 def format_ticker_for_yf(raw_ticker: str) -> str:
     """
@@ -78,8 +85,50 @@ def get_live_stock_data(tickers: List[str]) -> Dict[str, Dict[str, any]]:
         print(f"Error fetching live stock data: {e}")
         return {}
 
-@router.get("/", response_model=List[StockResponse])
-def get_stocks():
+@router.get("/", response_model=StockListResponse)
+def get_stocks(sync: bool = True, refresh: bool = False):
+    """
+    Fetches stocks from the local DB. 
+    If sync=True (default), it first pulls fresh data from the Google Sheet (Assets tab)
+    and updates the local DB to match.
+    Pass refresh=True to bypass the 5-minute cache.
+    """
+    if sync:
+        try:
+            # Fetch latest data from 2026 sheet
+            sheet_data = get_year_data("2026", force_refresh=refresh)
+            sheet_stocks = sheet_data.get("individual_stocks", [])
+            
+            if sheet_stocks:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                
+                # We'll do an 'upsert' logic:
+                # 1. Get existing tickers from DB
+                cursor.execute("SELECT ticker FROM stock_holdings")
+                db_tickers = {row[0] for row in cursor.fetchall()}
+                
+                for ss in sheet_stocks:
+                    if ss['ticker'] in db_tickers:
+                        # Update existing
+                        cursor.execute('''
+                            UPDATE stock_holdings 
+                            SET avg_price_paid = ?, shares = ?, exit_price = ?
+                            WHERE ticker = ?
+                        ''', (ss['avg_price_paid'], ss['shares'], ss['exit_price'], ss['ticker']))
+                    else:
+                        # Insert new
+                        cursor.execute('''
+                            INSERT INTO stock_holdings (ticker, avg_price_paid, shares, exit_price)
+                            VALUES (?, ?, ?, ?)
+                        ''', (ss['ticker'], ss['avg_price_paid'], ss['shares'], ss['exit_price']))
+                
+                conn.commit()
+                conn.close()
+                print(f"[stocks] Synced {len(sheet_stocks)} stocks from Google Sheet.")
+        except Exception as e:
+            print(f"[stocks] Error syncing from sheet: {e}")
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM stock_holdings")
@@ -87,6 +136,9 @@ def get_stocks():
     conn.close()
 
     stock_records = [dict(r) for r in rows]
+    
+    # Filter out stocks with 0 shares if they came from the sheet (to keep UI clean)
+    stock_records = [r for r in stock_records if r['shares'] > 0]
     
     # Collect tickers for batch fetching
     yf_tickers_map = {}
@@ -116,7 +168,12 @@ def get_stocks():
             "trend": trend
         })
 
-    return response_data
+    # Prepare final response with metadata
+    return {
+        "holdings": response_data,
+        "is_cached": False, # Stocks sync to DB, so they are 'fresh' relative to DB
+        "last_updated": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    }
 
 @router.post("/", response_model=StockResponse)
 def create_stock(stock: StockCreate):
