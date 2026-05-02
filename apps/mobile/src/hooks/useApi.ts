@@ -1,5 +1,14 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE } from '../config';
+import { getApiBase } from '../config';
+
+// ─── Internal helpers ────────────────────────────────────────────────────────
+
+function apiUrl(path: string) {
+  return `${getApiBase()}${path}`;
+}
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
 
 export function useStats(year?: string) {
   const [stats, setStats] = useState<any>(null);
@@ -10,7 +19,7 @@ export function useStats(year?: string) {
     try {
       setLoading(true);
       setError(null);
-      let url = year && year !== 'All Time' ? `${API_BASE}/stats?year=${year}` : `${API_BASE}/stats`;
+      let url = year && year !== 'All Time' ? apiUrl(`/stats?year=${year}`) : apiUrl('/stats');
       if (refresh) {
         url += (url.includes('?') ? '&' : '?') + 'refresh=true';
       }
@@ -32,6 +41,8 @@ export function useStats(year?: string) {
   return { stats, loading, error, refetch: fetchStats };
 }
 
+// ─── Detailed Stats ───────────────────────────────────────────────────────────
+
 export function useDetailedStats(year: string) {
   const [detailedStats, setDetailedStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +52,7 @@ export function useDetailedStats(year: string) {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/stats/detailed?year=${year}`);
+      const res = await fetch(apiUrl(`/stats/detailed?year=${year}`));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setDetailedStats(data);
@@ -57,16 +68,22 @@ export function useDetailedStats(year: string) {
   return { detailedStats, loading, error, refetch: fetchDetailedStats };
 }
 
+// ─── Insights ─────────────────────────────────────────────────────────────────
+
 export function useInsights() {
   const [insights, setInsights] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchInsights = useCallback(async () => {
+  const fetchInsights = useCallback(async (force: boolean = false) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/portfolio/analysis`);
+      // Pass ?force=true to bypass the backend's permanent in-memory LLM cache
+      const url = force
+        ? apiUrl(`/portfolio/analysis?force=true&_t=${Date.now()}`)
+        : apiUrl('/portfolio/analysis');
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setInsights(data);
@@ -79,8 +96,10 @@ export function useInsights() {
 
   useEffect(() => { fetchInsights(); }, [fetchInsights]);
 
-  return { insights, loading, error, refetch: fetchInsights };
+  return { insights, loading, error, refetch: () => fetchInsights(true) };
 }
+
+// ─── Stocks ───────────────────────────────────────────────────────────────────
 
 export function useStocks() {
   const [data, setData] = useState<any>({ holdings: [], is_cached: false, last_updated: '' });
@@ -91,7 +110,7 @@ export function useStocks() {
     try {
       setLoading(true);
       setError(null);
-      const url = refresh ? `${API_BASE}/stocks?refresh=true` : `${API_BASE}/stocks`;
+      const url = refresh ? apiUrl('/stocks?refresh=true') : apiUrl('/stocks');
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -105,16 +124,17 @@ export function useStocks() {
 
   useEffect(() => { fetchStocks(); }, [fetchStocks]);
 
-  return { 
-    stocks: data.holdings || [], 
+  return {
+    stocks: data.holdings || [],
     metadata: { is_cached: data.is_cached, last_updated: data.last_updated },
-    loading, 
-    error, 
-    refetch: fetchStocks 
+    loading,
+    error,
+    refetch: fetchStocks
   };
 }
 
-// ── Assets ────────────────────────────────────────────────────────────────────
+// ─── Assets ───────────────────────────────────────────────────────────────────
+
 export function useAssets() {
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +144,7 @@ export function useAssets() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/assets/`);
+      const res = await fetch(apiUrl('/assets/'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setAssets(Array.isArray(data) ? data : []);
@@ -139,7 +159,8 @@ export function useAssets() {
   return { assets, loading, error, refetch: fetchAssets };
 }
 
-// ── FIRE ──────────────────────────────────────────────────────────────────────
+// ─── FIRE ─────────────────────────────────────────────────────────────────────
+
 export function useFireStatus() {
   const [fireStatus, setFireStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -149,7 +170,7 @@ export function useFireStatus() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/fire/status`);
+      const res = await fetch(apiUrl('/fire/status'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setFireStatus(await res.json());
     } catch (e: any) {
@@ -163,7 +184,8 @@ export function useFireStatus() {
   return { fireStatus, loading, error, refetch: fetch_ };
 }
 
-// ── Tax ───────────────────────────────────────────────────────────────────────
+// ─── Tax ─────────────────────────────────────────────────────────────────────
+
 export function useTaxSummary() {
   const [taxSummary, setTaxSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -173,7 +195,7 @@ export function useTaxSummary() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/tax/summary`);
+      const res = await fetch(apiUrl('/tax/summary'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setTaxSummary(await res.json());
     } catch (e: any) {
@@ -187,7 +209,8 @@ export function useTaxSummary() {
   return { taxSummary, loading, error, refetch: fetch_ };
 }
 
-// ── Analytics ─────────────────────────────────────────────────────────────────
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
 export function useAnalytics() {
   const [allocation, setAllocation] = useState<any>(null);
   const [performance, setPerformance] = useState<any>(null);
@@ -200,9 +223,9 @@ export function useAnalytics() {
       setLoading(true);
       setError(null);
       const [allocRes, perfRes, riskRes] = await Promise.all([
-        fetch(`${API_BASE}/analytics/allocation`),
-        fetch(`${API_BASE}/analytics/performance`),
-        fetch(`${API_BASE}/analytics/risk`),
+        fetch(apiUrl('/analytics/allocation')),
+        fetch(apiUrl('/analytics/performance')),
+        fetch(apiUrl('/analytics/risk')),
       ]);
       if (allocRes.ok) setAllocation(await allocRes.json());
       if (perfRes.ok) setPerformance(await perfRes.json());

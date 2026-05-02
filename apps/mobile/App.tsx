@@ -1,4 +1,4 @@
-import React, { ComponentProps } from 'react';
+import React, { ComponentProps, useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,16 +7,18 @@ import { View, Text, Platform, StyleSheet, Pressable } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Type, Shape, Elevation } from './src/components/shared';
+import { loadApiBase } from './src/config';
 
-import DashboardScreen   from './src/screens/DashboardScreen';
-import CashflowScreen    from './src/screens/CashflowScreen';
-import PortfolioScreen   from './src/screens/PortfolioScreen';
-import ChatScreen        from './src/screens/ChatScreen';
-import MoreScreen        from './src/screens/MoreScreen';
-import FireScreen        from './src/screens/FireScreen';
-import TaxScreen         from './src/screens/TaxScreen';
-import AnalyticsScreen   from './src/screens/AnalyticsScreen';
-import NewsScreen        from './src/screens/NewsScreen';
+import DashboardScreen            from './src/screens/DashboardScreen';
+import CashflowScreen             from './src/screens/CashflowScreen';
+import PortfolioScreen            from './src/screens/PortfolioScreen';
+import ChatScreen                 from './src/screens/ChatScreen';
+import MoreScreen                 from './src/screens/MoreScreen';
+import FireScreen                 from './src/screens/FireScreen';
+import TaxScreen                  from './src/screens/TaxScreen';
+import AnalyticsScreen            from './src/screens/AnalyticsScreen';
+import NewsScreen                 from './src/screens/NewsScreen';
+import ConnectionSettingsScreen   from './src/screens/ConnectionSettingsScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -123,17 +125,20 @@ const liveStyles = StyleSheet.create({
 function MoreNavigator() {
   return (
     <Stack.Navigator screenOptions={HEADER_OPTS}>
-      <Stack.Screen name="MoreHub"   component={MoreScreen}      options={{ title: 'Tools' }} />
-      <Stack.Screen name="FIRE"      component={FireScreen}      options={{ title: 'FIRE Calculator' }} />
-      <Stack.Screen name="Tax"       component={TaxScreen}       options={{ title: 'Tax Intelligence' }} />
-      <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Portfolio Analytics' }} />
-      <Stack.Screen name="News"      component={NewsScreen}      options={{ title: 'Market Intelligence' }} />
+      <Stack.Screen name="MoreHub"              component={MoreScreen}               options={{ title: 'Tools' }} />
+      <Stack.Screen name="FIRE"                 component={FireScreen}               options={{ title: 'FIRE Calculator' }} />
+      <Stack.Screen name="Tax"                  component={TaxScreen}                options={{ title: 'Tax Intelligence' }} />
+      <Stack.Screen name="Analytics"            component={AnalyticsScreen}          options={{ title: 'Portfolio Analytics' }} />
+      <Stack.Screen name="News"                 component={NewsScreen}               options={{ title: 'Market Intelligence' }} />
+      <Stack.Screen name="ConnectionSettings"   component={ConnectionSettingsScreen} options={{ title: 'Backend Connection' }} />
     </Stack.Navigator>
   );
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
+  // Load persisted API base URL before first render
+  useEffect(() => { loadApiBase(); }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
       <StatusBar style="dark" backgroundColor={Colors.surface} />

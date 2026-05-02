@@ -9,7 +9,14 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_PORT": "8001",
+        "EXPO_PUBLIC_API_IP": "192.168.0.102"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {}
   },

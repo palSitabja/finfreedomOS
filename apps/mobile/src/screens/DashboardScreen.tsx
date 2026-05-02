@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity,
+  View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { useStats, useInsights } from '../hooks/useApi';
 import { Ionicons } from '@expo/vector-icons';
@@ -146,11 +146,12 @@ export default function DashboardScreen() {
             <Text style={styles.insightTitle}>Portfolio Intelligence</Text>
             <Text style={styles.insightSub}>AI portfolio analysis</Text>
           </View>
-          {!il && (
-            <TouchableOpacity onPress={ri} style={styles.refreshBtn}>
-              <Ionicons name="refresh" size={18} color={Colors.primary} />
+          <TouchableOpacity onPress={ri} style={styles.refreshBtn} disabled={il}>
+              {il
+                ? <ActivityIndicator size="small" color={Colors.primary} />
+                : <Ionicons name="refresh" size={18} color={Colors.primary} />
+              }
             </TouchableOpacity>
-          )}
         </View>
 
         {il

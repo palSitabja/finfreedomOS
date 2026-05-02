@@ -23,4 +23,6 @@ config.resolver.extraNodeModules = {
   'react/jsx-runtime': path.resolve(monorepoRoot, 'node_modules/react/jsx-runtime'),
 };
 
+// Removed resolver hack because it breaks Expo Go
+
 module.exports = config;

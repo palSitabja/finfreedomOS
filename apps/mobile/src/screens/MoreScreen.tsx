@@ -45,6 +45,14 @@ const TOOLS: {
     color:  '#8B5CF6',
     tint:   '#EDE9FE',
   },
+  {
+    screen: 'ConnectionSettings',
+    icon:   'wifi-outline',
+    title:  'Backend Connection',
+    sub:    'Configure & test the API server connection',
+    color:  '#0891B2',
+    tint:   '#CFFAFE',
+  },
 ];
 
 export default function MoreScreen({ navigation }: any) {
