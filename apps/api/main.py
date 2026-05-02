@@ -13,9 +13,13 @@ load_dotenv()
 
 logger = setup_logger("api")
 
+from database import init_db
 from routers import assets, stocks, macro, news, insights, analytics, tax, fire, chat
 
 app = FastAPI(title="Finetra API")
+
+# Ensure all database tables exist on every startup
+init_db()
 
 app.include_router(assets.router)
 app.include_router(stocks.router)

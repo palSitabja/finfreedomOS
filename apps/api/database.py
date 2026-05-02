@@ -53,6 +53,46 @@ def init_db():
         )
     ''')
     
+    # Transactions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            year INTEGER NOT NULL,
+            month TEXT NOT NULL,
+            type TEXT NOT NULL,
+            group_name TEXT,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL,
+            currency TEXT DEFAULT 'INR',
+            source_sheet_id TEXT,
+            raw_row_index INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Sync history
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sync_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            spreadsheet_id TEXT NOT NULL,
+            year INTEGER NOT NULL,
+            last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    # Assets table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            invested_amount REAL DEFAULT 0,
+            current_amount REAL DEFAULT 0,
+            absolute_return REAL DEFAULT 0,
+            xirr REAL DEFAULT 0,
+            cagr REAL DEFAULT 0,
+            tenure_years REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
     print("Database initialized (schema finalized).")
